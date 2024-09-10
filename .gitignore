@@ -9,3 +9,4 @@
 */cache
 .ini
 .idea/
+.DS_Store

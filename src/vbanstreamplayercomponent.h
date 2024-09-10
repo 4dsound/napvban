@@ -93,6 +93,7 @@ namespace nap
 			 * @return amount of channels
 			 */
 			int getChannelCount() const override { return mBufferPlayers.size(); }
+            int getPortNumber() const  {return mVbanListener->mServer->mPort;}
 
             /**
              * Returns output pin for given channel, no bound checking, assert on out of bound

@@ -9,6 +9,8 @@
 #include <perspcameracomponent.h>
 #include <audio/component/playbackcomponent.h>
 
+#include <string>
+
 
 RTTI_BEGIN_CLASS_NO_DEFAULT_CONSTRUCTOR(nap::VBANDemoApp)
 	RTTI_CONSTRUCTOR(nap::Core&)
@@ -23,6 +25,7 @@ namespace nap
 		mSceneService	= getCore().getService<nap::SceneService>();
 		mInputService	= getCore().getService<nap::InputService>();
 		mGuiService		= getCore().getService<nap::IMGuiService>();
+		mAudioService	= getCore().getService<nap::audio::PortAudioService>();
 
 		// Fetch the resource manager
 		mResourceManager = getCore().getResourceManager();
@@ -41,17 +44,13 @@ namespace nap
         mVBANReceiverEntity = mScene->findEntity("VBANReceiverEntity");
         if (!error.check(mVBANReceiverEntity != nullptr, "unable to find entity with name: %s", "VBANReceiverEntity"))
             return false;
+//        mVBANReceiverEntity = mScene->findEntity("VBANReceiverEntity:1");
+//        if (!error.check(mVBANReceiverEntity != nullptr, "unable to find entity with name: %s", "VBANReceiverEntity"))
+//            return false;
 
-        // Get VBANSender Entity
-        mVBANSenderEntity = mScene->findEntity("VBANSenderEntity");
-        if (!error.check(mVBANSenderEntity != nullptr, "unable to find entity with name: %s", "VBANSenderEntity"))
-            return false;
-
-        // Resize the vectors containing the results of the analysis
-        mPlotReceiverValues.resize(512, 0);
-        mReceiverTickIdx = 0;
         mPlotSenderValues.resize(512, 0);
         mSenderTickIdx = 0;
+        mAudioDeviceSettingsGui = std::make_unique<audio::AudioDeviceSettingsGui>(*getCore().getService<audio::PortAudioService>(), false);
 
         capFramerate(true);
 
@@ -63,107 +62,89 @@ namespace nap
 	// Update app
 	void VBANDemoApp::update(double deltaTime)
 	{
+
+		// Config file modal ID
+		static constexpr char* configModalID = (char*)"Config File";
+		static std::string configError;
 		// Use a default input router to forward input events (recursively) to all input components in the default scene
 		nap::DefaultInputRouter input_router(true);
-		mInputService->processWindowEvents(*mRenderWindow, input_router, { &mScene->getRootEntity() });
+		mInputService->processWindowEvents(*mRenderWindow, input_router, { &mScene->getRootEntity() });    
+        const auto& pallete = getCore().getService<IMGuiService>()->getPalette();
+		mAudioDeviceSettingsGui->drawGui();
+
+
 
         /**
          * Draw the windows displaying info about the VBAN sender and receiver
+         *
          */
-        const auto& pallete = getCore().getService<IMGuiService>()->getPalette();
 
-        ImGui::Begin("VBAN Receiver");
-        ImGui::PushID("VBAN Receiver");
-
-        auto& vban_stream_player_instance = mVBANReceiverEntity->getComponent<audio::VBANStreamPlayerComponentInstance>();
-        auto* vban_stream_player_component = vban_stream_player_instance.getComponent<audio::VBANStreamPlayerComponent>();
-
-        ImGui::Text("VBAN Receiver");
-
-        ImGui::Text("Listening for VBAN packets on port:");
-        ImGui::SameLine();
-        ImGui::TextColored(pallete.mHighlightColor3, "%i", vban_stream_player_component->mVBANPacketReceiver->mServer->mPort);
-
-        ImGui::Text("Listening to stream:");
-        ImGui::SameLine();
-        ImGui::TextColored(pallete.mHighlightColor3, "%s", vban_stream_player_component->mStreamName.c_str());
-
-        ImGui::Text("Allowed latency in samples:");
-        ImGui::SameLine();
-        ImGui::TextColored(pallete.mHighlightColor3, "%i", vban_stream_player_component->mMaxBufferSize);
-
-        ImGui::Spacing();
-        ImGui::Text("Received Audio (Channel 0)");
-        auto receiver_level_meter = mVBANReceiverEntity->findComponent<audio::LevelMeterComponentInstance>();
-
-        // Store new value in array
-        mPlotReceiverValues[mReceiverTickIdx] = receiver_level_meter->getLevel();	// save new value so it can be subtracted later
-        if (++mReceiverTickIdx == mPlotReceiverValues.size())			// increment current sample index
-            mReceiverTickIdx = 0;
-
-        ImGui::PlotHistogram("",
-                             mPlotReceiverValues.data(),
-                             mPlotReceiverValues.size(),
-                             mReceiverTickIdx, nullptr, 0.0f, 0.2f,
-                             ImVec2(ImGui::GetColumnWidth(), 128)); // Plot the output values
-
-
-
-        ImGui::PopID();
-        ImGui::End();
-
-        ImGui::Begin("VBAN Sender");
-        ImGui::PushID("VBAN Sender");
-
-        auto& playback_component_instance = mVBANSenderEntity->getComponent<audio::PlaybackComponentInstance>();
-        auto& vban_stream_sender_component_instance = mVBANSenderEntity->getComponent<audio::VBANStreamSenderComponentInstance>();
-        auto* vban_stream_sender_component = vban_stream_sender_component_instance.getComponent<audio::VBANStreamSenderComponent>();
-
-        ImGui::Text("VBAN Sender");
-
-        ImGui::Text("Sending for VBAN packets to :");
-        ImGui::SameLine();
-        ImGui::TextColored(pallete.mHighlightColor3, "%s:%i",
-                           vban_stream_sender_component->mUdpClient->mEndpoint.c_str(),
-                           vban_stream_sender_component->mUdpClient->mPort);
-
-        ImGui::Text("Sending to stream:");
-        ImGui::SameLine();
-        ImGui::TextColored(pallete.mHighlightColor3, "%s", vban_stream_sender_component->mStreamName.c_str());
-
-        bool play = playback_component_instance.isPlaying();
-        if(ImGui::Checkbox("Play", &play))
+        ImGui::Begin("Reciever Count");
+        if(ImGui::Button("plus"))
         {
-            if(play)
-            {
-                playback_component_instance.start(0);
-            }else
-            {
-                playback_component_instance.stop();
-            }
+            
+            mVBANReciverE = mResourceManager->findObject<Entity>("VBANReceiverEntity");
+			auto errostate = nap::utility::ErrorState();
+			Entity* vbanEntity = mVBANReciverE.get();
+            SpawnedEntityInstance EntityPtr = mScene->spawn(*vbanEntity, errostate);
+    
+            auto PlayerComponent = EntityPtr.get()->findComponent<audio::VBANStreamPlayerComponentInstance>();
+            unsigned long count = mRecieverEntities.size();
+            std::string newstream = std::string("vbandemo") +std::to_string(count);
+            PlayerComponent->setStreamName(newstream);
+            
+			mRecieverEntities.push_back(EntityPtr);
+
+            std::vector<audio::ControllerValue> newPloter = {};
+            newPloter.resize(512, 0);
+            std::fill(newPloter.begin(),newPloter.end(),0);
+            mPlotReceiverValues.push_back(newPloter);
+
+		}
+
+            
+        if(ImGui::Button("minus"))
+        {
+			auto del_entity = mRecieverEntities.back();
+			del_entity = mRecieverEntities.back();
+			mScene->destroy(del_entity);
+			mRecieverEntities.pop_back();   
+            mPlotReceiverValues.pop_back();
         }
 
-        ImGui::Spacing();
+        for (std::size_t i = 0, e = mRecieverEntities.size(); i != e; ++i) {
+			// render the gui for all the vban recievers
+			auto& vban_stream_player_instance = mRecieverEntities[i]->getComponent<audio::VBANStreamPlayerComponentInstance>();
 
-        ImGui::Text("Sending Audio (Channel 0)");
+			ImGui::Text("VBAN Receiver");
 
-        auto sender_level_meter = mVBANSenderEntity->findComponent<audio::LevelMeterComponentInstance>();
+			ImGui::Text("Listening for VBAN packets on port:");
+			ImGui::SameLine();
+			ImGui::TextColored(pallete.mHighlightColor3, "%i", vban_stream_player_instance.getPortNumber());
 
-        // Store new value in array
-        mPlotSenderValues[mSenderTickIdx] = sender_level_meter->getLevel();	// save new value so it can be subtracted later
-        if (++mSenderTickIdx == mPlotSenderValues.size())			// increment current sample index
-            mSenderTickIdx = 0;
+			ImGui::Text("Listening to stream:");
+			ImGui::SameLine();
+			ImGui::TextColored(pallete.mHighlightColor3, "%s", vban_stream_player_instance.getStreamName().c_str());
+            
 
-        ImGui::PlotHistogram("",
-                             mPlotSenderValues.data(),
-                             mPlotSenderValues.size(),
-                             mSenderTickIdx, nullptr, 0.0f, 0.2f,
-                             ImVec2(ImGui::GetColumnWidth(), 128)); // Plot the output values
+    			ImGui::Spacing();
+    			ImGui::Text("Received Audio (Channel 0)");
+    			auto receiver_level_meter = mRecieverEntities[i]->findComponent<audio::LevelMeterComponentInstance>();
+    
+    						// Store new value in array
+    			mPlotReceiverValues[i][mReceiverTickIdx] = receiver_level_meter->getLevel();	// save new value so it can be subtracted later
+    			if (++mReceiverTickIdx == mPlotReceiverValues[i].size())			// increment current sample index
+    				mReceiverTickIdx = 0;
+    
+    			ImGui::PlotHistogram("",
+    								mPlotReceiverValues[i].data(),
+    								mPlotReceiverValues[i].size(),
+    								mReceiverTickIdx, nullptr, 0.0f, 0.2f,
+    								ImVec2(ImGui::GetColumnWidth(), 128));
+    		}
 
-
-
-        ImGui::PopID();
         ImGui::End();
+
 	}
 	
 	
@@ -222,6 +203,9 @@ namespace nap
 	
 	int VBANDemoApp::shutdown()
 	{
+		// Clean up
+		mRecieverEntities.clear();
+		mVBANReceiverEntity = nullptr;
 		return 0;
 	}
 
