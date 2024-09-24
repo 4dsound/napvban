@@ -51,7 +51,7 @@ namespace nap
         mPlotSenderValues.resize(512, 0);
         mSenderTickIdx = 0;
         mAudioDeviceSettingsGui = std::make_unique<audio::AudioDeviceSettingsGui>(*getCore().getService<audio::PortAudioService>(), false);
-
+		// mResourceManager->fi
         capFramerate(true);
 
 		// All done!
@@ -89,6 +89,7 @@ namespace nap
             SpawnedEntityInstance EntityPtr = mScene->spawn(*vbanEntity, errostate);
     
             auto PlayerComponent = EntityPtr.get()->findComponent<audio::VBANStreamPlayerComponentInstance>();
+        	// auto PlayerComponent = EntityPtr.get()->addComponent()
             unsigned long count = mRecieverEntities.size();
             std::string newstream = std::string("vbandemo") +std::to_string(count);
             PlayerComponent->setStreamName(newstream);
@@ -144,6 +145,13 @@ namespace nap
     		}
 
         ImGui::End();
+		ImGui::Begin("Recvr Buffer Size");
+		ImGui::InputInt("Recvr Buffer Size",&RecvBufferSize,VBAN_DATA_MAX_SIZE,VBAN_DATA_MAX_SIZE * 5);
+		auto VBANServerComponent = mResourceManager->findObject<VBANPacketReceiver>("VBANPacketReceiver");
+		auto vban_server = VBANServerComponent->mServer.get();
+		vban_server->changeRecvBufSize(RecvBufferSize);
+
+		ImGui::End();
 
 	}
 	

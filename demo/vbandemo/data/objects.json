@@ -85,7 +85,7 @@
             "StopOnMaxQueueSizeExceeded": true
         },
         {
-            "Type": "nap::UDPServer",
+            "Type": "nap::VBANUDPServer",
             "mID": "UDPServer",
             "Thread": "UDPThread",
             "AllowFailure": false,

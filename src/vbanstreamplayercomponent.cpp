@@ -37,13 +37,17 @@ namespace nap
 
 		bool VBANStreamPlayerComponentInstance::init(utility::ErrorState& errorState)
 		{
-            // acquire audio service
-            mAudioService = getEntityInstance()->getCore()->getService<AudioService>();
+
 
             // acquire resources
 			mResource = getComponent<VBANStreamPlayerComponent>();
 			mVbanListener = mResource->mVBANPacketReceiver.get();
 			mStreamName = mResource->mStreamName;
+			// TODO: MAKE NICER
+
+			// acquire audio service
+			mAudioService = getEntityInstance()->getCore()->getService<AudioService>();
+
 			mNodeManager = &mAudioService->getNodeManager();
 			mChannelRouting = mResource->mChannelRouting;
 

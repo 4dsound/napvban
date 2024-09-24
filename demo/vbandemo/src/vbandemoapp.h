@@ -96,6 +96,7 @@ namespace nap
         std::vector<audio::ControllerValue> mPlotSenderValues = { };
         std::unique_ptr<audio::AudioDeviceSettingsGui> mAudioDeviceSettingsGui = nullptr; //< Gui to select audio device settings at runtime
         uint32 mSenderTickIdx = 0;
+		int RecvBufferSize = VBAN_DATA_MAX_SIZE;
 
     };
 }

@@ -10,6 +10,8 @@
 #include <udppacket.h>
 #include <utility/threading.h>
 
+#include "vbanudpserver.h"
+
 namespace nap
 {
 
@@ -65,7 +67,7 @@ namespace nap
 		void removeStreamListener(IVBANStreamListener* listener);
 
 	public:
-        ResourcePtr<UDPServer> mServer = nullptr; ///< Property: 'Server' Pointer to the UDP server receiving the packets
+        ResourcePtr<VBANUDPServer> mServer = nullptr; ///< Property: 'Server' Pointer to the VBAN UDP server receiving the packets
 
 	protected:
         Slot<const UDPPacket&> mPacketReceivedSlot = { this, &VBANPacketReceiver::packetReceived };
