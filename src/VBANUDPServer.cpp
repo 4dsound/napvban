@@ -115,19 +115,26 @@ namespace nap {
 
 
     void nap::VBANUDPServer::onProcess() {
-        asio::error_code asio_error_code;
-        mBuffer.resize(VBAN_DATA_MAX_SIZE);
-            if(const uint len = mImpl->mSocket.receive(asio::buffer(mBuffer)); len > 0) {
-                assert(len <= VBAN_DATA_MAX_SIZE);
-                const UDPPacket packet(std::move(mBuffer));
-
-                std::lock_guard<std::mutex> lock(mMutex);
-                packetReceived.trigger(packet);
+        if(!mIsRecieveing) {
+            auto available=mImpl->mSocket.available();
+            if(available) {
+                mIsRecieveing = true;
             }
+        }else {
+                asio::error_code asio_error_code;
+                mBuffer.resize(VBAN_DATA_MAX_SIZE);
 
-            if(asio_error_code)
-                nap::Logger::error(*this, asio_error_code.message());
+                if (const uint len = mImpl->mSocket.receive(asio::buffer(mBuffer)); len > 0) {
+                    assert(len <= VBAN_DATA_MAX_SIZE);
+                    std::lock_guard<std::mutex> lock(mMutex);
+                    const UDPPacket packet(std::move(mBuffer));
 
+                    packetReceived.trigger(packet);
+                }
+
+                if (asio_error_code)
+                    nap::Logger::error(*this, asio_error_code.message());
+            }
     }
 
 

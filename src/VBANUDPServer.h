@@ -42,7 +42,7 @@ public:
     int mPort 						= 13251;		///< Property: 'Port' the port the server socket binds to
     std::string mIPAddress			= "";	        ///< Property: 'IP Address' local ip address to bind to, if left empty will bind to any local address
     std::vector<std::string> mMulticastGroups;      ///< Property: 'Multicast Groups' multicast groups to join
-
+    bool mIsRecieveing = false;
 protected:
     /**
  * packet received signal will be dispatched on the thread this UDPServer is registered to, see UDPThread
