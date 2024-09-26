@@ -65,11 +65,7 @@
             "Type": "nap::Scene",
             "mID": "Scene",
             "Entities": [
-                {
-                    "Entity": "VBANReceiverEntity",
-                    "InstanceProperties": []
-                }
-   
+
         
             ]
         },

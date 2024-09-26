@@ -40,13 +40,6 @@ namespace nap
 		if (!error.check(mScene != nullptr, "unable to find scene with name: %s", "Scene"))
 			return false;
 
-        // Get VBANReceiver Entity
-        mVBANReceiverEntity = mScene->findEntity("VBANReceiverEntity");
-        if (!error.check(mVBANReceiverEntity != nullptr, "unable to find entity with name: %s", "VBANReceiverEntity"))
-            return false;
-//        mVBANReceiverEntity = mScene->findEntity("VBANReceiverEntity:1");
-//        if (!error.check(mVBANReceiverEntity != nullptr, "unable to find entity with name: %s", "VBANReceiverEntity"))
-//            return false;
 
         mPlotSenderValues.resize(512, 0);
         mSenderTickIdx = 0;
