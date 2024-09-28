@@ -27,8 +27,7 @@ namespace nap
 
 	void VBANPacketReceiver::packetReceived(const UDPPacket &packet)
 	{
-        // Process adding or removing receivers
-        mTaskQueue.process();
+		std::lock_guard<std::mutex> lock(mMutex);
 
         utility::ErrorState errorState;
 		if (checkPacket(errorState, &packet.data()[0], packet.size()) )
@@ -41,6 +40,7 @@ namespace nap
 			{
                 // get stream name, use it to forward buffers to any registered stream audio receivers
                 const std::string stream_name(hdr->streamname);
+
                 for (auto *receiver: mReceivers)
 				{
                     if (receiver->getStreamName() == stream_name)
@@ -159,36 +159,31 @@ namespace nap
 
 	void VBANPacketReceiver::registerStreamListener(IVBANStreamListener* receiver)
 	{
-		mTaskQueue.enqueue([this, receiver]()
+		std::lock_guard<std::mutex> lock(mMutex);
+		auto it = std::find_if(mReceivers.begin(), mReceivers.end(), [receiver](auto& a) { return a == receiver; });
+		assert(it == mReceivers.end()); // receiver already registered
+		if (it == mReceivers.end())
 		{
-			auto it = std::find_if(mReceivers.begin(), mReceivers.end(), [receiver](auto& a) { return a == receiver; });
-
-            assert(it == mReceivers.end()); // receiver already registered
-
-			if (it == mReceivers.end())
-			{
-                mReceivers.emplace_back(receiver);
-            }
-        });
+			mReceivers.emplace_back(receiver);
+		}
     }
 
 
 	void VBANPacketReceiver::removeStreamListener(IVBANStreamListener* receiver)
 	{
-		mTaskQueue.enqueue([this, receiver]()
+		std::lock_guard<std::mutex> lock(mMutex);
+
+		auto it = std::find_if(mReceivers.begin(), mReceivers.end(), [receiver](auto& a)
 		{
-			auto it = std::find_if(mReceivers.begin(), mReceivers.end(), [receiver](auto& a)
-			{
-                return a == receiver;
-            });
+			return a == receiver;
+		});
 
-            assert(it != mReceivers.end()); // receiver not registered
+		assert(it != mReceivers.end()); // receiver not registered
 
-			if(it != mReceivers.end())
-			{
-                mReceivers.erase(it);
-            }
-        });
+		if (it != mReceivers.end())
+		{
+			mReceivers.erase(it);
+		}
     }
 
 }
