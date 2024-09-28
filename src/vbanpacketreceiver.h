@@ -80,6 +80,7 @@ namespace nap
 	private:
 		std::vector<IVBANStreamListener*> mReceivers;
         TaskQueue mTaskQueue;
+		std::vector<std::vector<float>> mBuffers; // Here as to not reallocate them for every received packet
 	};
 
 

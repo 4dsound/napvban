@@ -31,17 +31,20 @@ namespace nap
         mTaskQueue.process();
 
         utility::ErrorState errorState;
-		if (checkPacket(errorState, &packet.data()[0], packet.size()) ) {
+		if (checkPacket(errorState, &packet.data()[0], packet.size()) )
+		{
             struct VBanHeader const *const hdr = (struct VBanHeader *) (&packet.data()[0]);
-
 
             // get sample rate
             int const sample_rate_format = hdr->format_SR & VBAN_SR_MASK;
-            if (int sample_rate = 0; utility::getSampleRateFromVBANSampleRateFormat(sample_rate, sample_rate_format, errorState)) {
+            if (int sample_rate = 0; utility::getSampleRateFromVBANSampleRateFormat(sample_rate, sample_rate_format, errorState))
+			{
                 // get stream name, use it to forward buffers to any registered stream audio receivers
                 const std::string stream_name(hdr->streamname);
-                for (auto *receiver: mReceivers) {
-                    if (receiver->getStreamName() == stream_name) {
+                for (auto *receiver: mReceivers)
+				{
+                    if (receiver->getStreamName() == stream_name)
+					{
                         // get packet meta-data
                         int const nb_samples = hdr->format_nbs + 1;
                         int const nb_channels = hdr->format_nbc + 1;
@@ -49,14 +52,11 @@ namespace nap
                             VBAN_BIT_RESOLUTION_MASK)];
                         size_t payload_size = nb_samples * sample_size * nb_channels;
 
-                        // create buffers to push to players
-                        std::vector<std::vector<float>> buffers;
-                        int float_buffer_size = (payload_size / sample_size) / nb_channels;
-                        for (int i = 0; i < nb_channels; i++) {
-                            std::vector<float> new_buffer;
-                            new_buffer.resize(float_buffer_size);
-                            buffers.emplace_back(new_buffer);
-                        }
+                        // Resize buffers to push to players
+                        int float_buffer_size = int(payload_size / sample_size) / nb_channels;
+						mBuffers.resize(nb_channels);
+						for (auto& buffer: mBuffers)
+							buffer.resize(float_buffer_size);
 
                         // convert WAVE PCM multiplexed signal into floating point (SampleValue) buffers for each channel
                         for (size_t i = 0; i < float_buffer_size; i++)
@@ -68,20 +68,19 @@ namespace nap
                                 char byte_2 = packet.data()[pos + 1];
                                 short original_value = ((static_cast<short>(byte_2)) << 8) | (0x00ff & byte_1);
 
-                                buffers[c][i] = ((float) original_value) / (float) 32768;
+                                mBuffers[c][i] = ((float) original_value) / (float) 32768;
                             }
                         }
 
-                        receiver->pushBuffers(buffers);
+                        receiver->pushBuffers(mBuffers);
                     }
                 }
-            }else
-            {
+            }
+			else {
                 nap::Logger::error(errorState.toString());
             }
 		}
-        else
-        {
+        else {
             nap::Logger::warn(*this, errorState.toString());
         }
     }
