@@ -12,7 +12,8 @@
                         0,
                         1
                     ],
-                    "MaxBufferSize": 4096
+                    "MaxBufferSize": 4096,
+                    "StreamName": "vbandemo"
                 },
                 {
                     "Type": "nap::audio::OutputComponent",
@@ -27,6 +28,48 @@
                     "Type": "nap::audio::LevelMeterComponent",
                     "mID": "ReceiverLevelMeter",
                     "Input": "./VBANStreamPlayerComponent",
+                    "AnalysisWindowSize": 10.0,
+                    "MeterType": "RMS",
+                    "FilterInput": false,
+                    "CenterFrequency": 400.0,
+                    "BandWidth": 100.0,
+                    "Channel": 0
+                }
+            ],
+            "Children": []
+        },
+        {
+            "Type": "nap::Entity",
+            "mID": "VBANSenderEntity",
+            "Components": [
+                {
+                    "Type": "nap::audio::VBANStreamSenderComponent",
+                    "mID": "VBANStreamSenderComponent",
+                    "UdpClient": "UDPClient",
+                    "Input": "./PlaybackComponent",
+                    "StreamName": "vbandemo"
+                },
+                {
+                    "Type": "nap::audio::PlaybackComponent",
+                    "mID": "PlaybackComponent",
+                    "Buffer": "AudioFile",
+                    "ChannelRouting": [
+                        0,
+                        1
+                    ],
+                    "Gain": 1.0,
+                    "StereoPanning": 0.5,
+                    "AutoPlay": true,
+                    "StartPosition": 0.0,
+                    "Duration": 0.0,
+                    "FadeInTime": 0.0,
+                    "FadeOutTime": 0.0,
+                    "Pitch": 1.0
+                },
+                {
+                    "Type": "nap::audio::LevelMeterComponent",
+                    "mID": "SenderLevelMeter",
+                    "Input": "./PlaybackComponent",
                     "AnalysisWindowSize": 10.0,
                     "MeterType": "RMS",
                     "FilterInput": false,
@@ -65,8 +108,14 @@
             "Type": "nap::Scene",
             "mID": "Scene",
             "Entities": [
-
-        
+                {
+                    "Entity": "VBANSenderEntity",
+                    "InstanceProperties": []
+                },
+                {
+                    "Entity": "VBANReceiverEntity",
+                    "InstanceProperties": []
+                }
             ]
         },
         {
@@ -81,7 +130,7 @@
             "StopOnMaxQueueSizeExceeded": true
         },
         {
-            "Type": "nap::VBANUDPServer",
+            "Type": "nap::UDPServer",
             "mID": "UDPServer",
             "Thread": "UDPThread",
             "AllowFailure": false,

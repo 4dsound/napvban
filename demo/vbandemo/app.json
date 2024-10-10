@@ -6,10 +6,10 @@
     "RequiredModules": [
         "napapp",
         "napcameracontrol",
-        "napimgui",
+        "napparametergui",
         "napvbandemo"
     ],
     "Data": "data/objects.json",
-    "ServiceConfig": "config.json",
+    "ServiceConfig": "",
     "PathMapping": "cache/path_mapping.json"
 }

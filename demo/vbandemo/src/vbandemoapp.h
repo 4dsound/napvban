@@ -16,8 +16,6 @@
 #include <vbanstreamplayercomponent.h>
 #include <vbanstreamsendercomponent.h>
 
-#include "audiodevicesettingsgui.h"
-
 namespace nap
 {
 	using namespace rtti;
@@ -76,7 +74,6 @@ namespace nap
 		virtual int shutdown() override;
 
 	private:
-	    audio::PortAudioService* mAudioService = nullptr;               //< Manages audio devices and processing
 		ResourceManager*			mResourceManager = nullptr;		///< Manages all the loaded data
 		RenderService*				mRenderService = nullptr;		///< Render Service that handles render calls
 		SceneService*				mSceneService = nullptr;		///< Manages all the objects in the scene
@@ -86,17 +83,14 @@ namespace nap
 		ObjectPtr<Scene>			mScene = nullptr;				///< Pointer to the main scene
         ObjectPtr<EntityInstance>	mVBANSenderEntity = nullptr;    ///< Pointer to VBAN sender entity
         ObjectPtr<EntityInstance>	mVBANReceiverEntity = nullptr;  ///< Pointer to VBAN receiver entity
-        ObjectPtr<Entity>           mVBANReciverE = nullptr;
+
         // used to draw histogram of received audio signal
-        std::vector<std::vector<audio::ControllerValue>> mPlotReceiverValues = { };
+        std::vector<audio::ControllerValue> mPlotReceiverValues = { };
         uint32 mReceiverTickIdx = 0;
-        std::vector<nap::SpawnedEntityInstance> mRecieverEntities = { };
 
         // used to draw histogram of sent audio signal
         std::vector<audio::ControllerValue> mPlotSenderValues = { };
-        std::unique_ptr<audio::AudioDeviceSettingsGui> mAudioDeviceSettingsGui = nullptr; //< Gui to select audio device settings at runtime
         uint32 mSenderTickIdx = 0;
-		int RecvBufferSize = VBAN_DATA_MAX_SIZE;
 
     };
 }
