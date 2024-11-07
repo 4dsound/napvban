@@ -31,7 +31,7 @@ namespace nap
 	{
 		void VBANStreamPlayerComponentInstance::onDestroy()
 		{
-            mVbanListener->removeStreamListener(this);
+            mVbanReceiver->removeStreamListener(this);
 		}
 
 
@@ -41,7 +41,7 @@ namespace nap
 
             // acquire resources
 			mResource = getComponent<VBANStreamPlayerComponent>();
-			mVbanListener = mResource->mVBANPacketReceiver.get();
+			mVbanReceiver = mResource->mVBANPacketReceiver.get();
 			mStreamName = mResource->mStreamName;
 			// TODO: MAKE NICER
 
@@ -63,7 +63,7 @@ namespace nap
 			}
 
             // register to the packet receiver
-            mVbanListener->registerStreamListener(this);
+            mVbanReceiver->registerStreamListener(this);
 
 			return true;
 		}

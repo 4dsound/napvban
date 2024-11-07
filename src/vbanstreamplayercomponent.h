@@ -93,7 +93,7 @@ namespace nap
 			 * @return amount of channels
 			 */
 			int getChannelCount() const override { return mBufferPlayers.size(); }
-            int getPortNumber() const  {return mVbanListener->mServer->mPort;}
+            int getPortNumber() const  {return mVbanReceiver->mServer->mPort;}
 
             /**
              * Returns output pin for given channel, no bound checking, assert on out of bound
@@ -134,7 +134,7 @@ namespace nap
 			VBANStreamPlayerComponent* mResource = nullptr; // The component's resource
 			NodeManager* mNodeManager = nullptr; // The audio node manager this component's audio nodes are managed by
 			AudioService* mAudioService = nullptr; // audio server
-			VBANPacketReceiver* mVbanListener = nullptr; // the vban packet receiver
+			VBANPacketReceiver* mVbanReceiver = nullptr; // the vban packet receiver
             int mSampleRate = 0; // sample rate
 		};
 	}

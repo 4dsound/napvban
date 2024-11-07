@@ -33,7 +33,7 @@ namespace nap
 		 * Connects a listener slot to the packetReceived signal. Thread-Safe
 		 * @param slot the slot that will be invoked when a packet is received
 		 */
-			void registerListenerSlot(Slot<const UDPPacket&>& slot);
+		void registerListenerSlot(Slot<const UDPPacket&>& slot);
 
 		/**
 		 * Disconnects a listener slot from the packetReceived signal. Thread-Safe

@@ -20,7 +20,6 @@ namespace nap
 	bool VBANPacketReceiver::init(utility::ErrorState& errorState)
 	{
         mServer->registerListenerSlot(mPacketReceivedSlot);
-
         return true;
     }
 
@@ -41,7 +40,7 @@ namespace nap
                 // get stream name, use it to forward buffers to any registered stream audio receivers
                 const std::string stream_name(hdr->streamname);
 
-                for (auto *receiver: mReceivers)
+                for (auto *receiver: mListeners)
 				{
                     if (receiver->getStreamName() == stream_name)
 					{
@@ -160,11 +159,11 @@ namespace nap
 	void VBANPacketReceiver::registerStreamListener(IVBANStreamListener* receiver)
 	{
 		std::lock_guard<std::mutex> lock(mMutex);
-		auto it = std::find_if(mReceivers.begin(), mReceivers.end(), [receiver](auto& a) { return a == receiver; });
-		assert(it == mReceivers.end()); // receiver already registered
-		if (it == mReceivers.end())
+		auto it = std::find_if(mListeners.begin(), mListeners.end(), [receiver](auto& a) { return a == receiver; });
+		assert(it == mListeners.end()); // receiver already registered
+		if (it == mListeners.end())
 		{
-			mReceivers.emplace_back(receiver);
+			mListeners.emplace_back(receiver);
 		}
     }
 
@@ -173,16 +172,16 @@ namespace nap
 	{
 		std::lock_guard<std::mutex> lock(mMutex);
 
-		auto it = std::find_if(mReceivers.begin(), mReceivers.end(), [receiver](auto& a)
+		auto it = std::find_if(mListeners.begin(), mListeners.end(), [receiver](auto& a)
 		{
 			return a == receiver;
 		});
 
-		assert(it != mReceivers.end()); // receiver not registered
+		assert(it != mListeners.end()); // receiver not registered
 
-		if (it != mReceivers.end())
+		if (it != mListeners.end())
 		{
-			mReceivers.erase(it);
+			mListeners.erase(it);
 		}
     }
 

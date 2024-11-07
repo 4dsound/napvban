@@ -78,7 +78,7 @@ namespace nap
 		bool checkPcmPacket(utility::ErrorState& errorState, nap::uint8 const* buffer, size_t size);
 
 	private:
-		std::vector<IVBANStreamListener*> mReceivers;
+		std::vector<IVBANStreamListener*> mListeners;
 		std::vector<std::vector<float>> mBuffers; // Here as to not reallocate them for every received packet
 		std::mutex mMutex;
 	};
