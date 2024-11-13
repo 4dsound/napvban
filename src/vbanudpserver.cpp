@@ -45,15 +45,20 @@ namespace nap
 
 	bool nap::VBANUDPServer::onStart(nap::utility::ErrorState &errorState)
 	{
+		// create asio implementation
 		mImpl = std::make_unique<VBANUDPServer::Impl>(getIOContext());
 
+		// when asio error occurs, init_success indicates whether initialization should fail or succeed
 		bool init_success = false;
 
+		// try to open socket
 		asio::error_code errorCode;
-		mImpl->mSocket.open(udp::v4(),errorCode);
-		if (handleAsioError(errorCode,errorState,init_success))
+		mImpl->mSocket.open(udp::v4(), errorCode);
+		if (handleAsioError(errorCode, errorState, init_success))
 			return init_success;
 
+		// try to create ip address
+		// when address property is left empty, bind to any local address
 		asio::ip::address address;
 		if (mIPAddress.empty())
 		{
@@ -61,15 +66,16 @@ namespace nap
 		}
 		else {
 			address = asio::ip::make_address(mIPAddress,errorCode);
-			if(handleAsioError(errorCode,errorState,init_success))
+			if (handleAsioError(errorCode, errorState, init_success))
 				return init_success;
 		}
 
-		nap::Logger::info(*this,"Listening at port %i",mPort);
-		mImpl->mSocket.bind(udp::endpoint(address,mPort),errorCode);
+		nap::Logger::info(*this, "Listening at port %i", mPort);
+		mImpl->mSocket.bind(udp::endpoint(address,mPort), errorCode);
 		mImpl->mSocket.set_option(asio::ip::udp::socket::receive_buffer_size(mRecvBufSize));
-		if (handleAsioError(errorCode,errorState,init_success))
+		if (handleAsioError(errorCode, errorState, init_success))
 			return init_success;
+
 		for (const auto& multicast_group : mMulticastGroups)
 		{
 			auto multicast_address = make_address(multicast_group, errorCode);
@@ -81,6 +87,7 @@ namespace nap
 				return init_success;
 		}
 
+		// init UDPAdapter, registering the server to an UDPThread
 		if (!UDPAdapter::init(errorState))
 			return false;
 
@@ -92,8 +99,6 @@ namespace nap
 
 	void nap::VBANUDPServer::onStop()
 	{
-		UDPAdapter::onDestroy();
-
 		asio::error_code asio_error_code;
 		mImpl->mSocket.close(asio_error_code);
 
@@ -129,7 +134,9 @@ namespace nap
 				asio::error_code asio_error_code;
 				mBuffer.resize(VBAN_DATA_MAX_SIZE);
 
-				if (const uint len = mImpl->mSocket.receive(asio::buffer(mBuffer)); len > 0) {
+				uint len = mImpl->mSocket.receive(asio::buffer(mBuffer));
+				if (len > 0)
+				{
 					assert(len <= VBAN_DATA_MAX_SIZE);
 					std::lock_guard<std::mutex> lock(mMutex);
 					const UDPPacket packet(std::move(mBuffer));
