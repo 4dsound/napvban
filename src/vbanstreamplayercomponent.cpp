@@ -58,7 +58,7 @@ namespace nap
 			for (auto channel = 0; channel < mChannelRouting.size(); ++channel)
 			{
 				auto bufferPlayer = mNodeManager->makeSafe<SampleQueuePlayerNode>(*mNodeManager);
-                bufferPlayer->mMaxQueueSize = mResource->mMaxBufferSize;
+                bufferPlayer->setMaxQueueSize(mResource->mMaxBufferSize);
 				mBufferPlayers.emplace_back(std::move(bufferPlayer));
 			}
 
@@ -71,14 +71,12 @@ namespace nap
 
 		void VBANStreamPlayerComponentInstance::pushBuffers(const std::vector<std::vector<float>>& buffers)
 		{
-			if(buffers.size() >= getChannelCount())
+			if (buffers.size() >= getChannelCount())
 			{
 				for(int i = 0; i < mBufferPlayers.size(); i++)
-				{
 					mBufferPlayers[i]->queueSamples(&buffers[i][0], buffers[i].size());
-				}
-			}else
-			{
+			}
+			else {
 				nap::Logger::warn("error received %i buffers but expected %i", buffers.size(), getChannelCount());
 			}
 		}

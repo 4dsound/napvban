@@ -76,7 +76,7 @@ namespace nap
 		// mutex
 		std::mutex mMutex;
 		std::vector<uint8> mBuffer;
-		int mRecvBufSize = VBAN_DATA_MAX_SIZE * 10;
+		int mRecvBufSize = 1000000;
 	};
 
 } // nap

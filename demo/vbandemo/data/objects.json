@@ -126,11 +126,11 @@
             "Endpoint": "127.0.0.1",
             "Broadcast": false,
             "Port": 13251,
-            "MaxQueueSize": 1000,
+            "MaxQueueSize": 1000000,
             "StopOnMaxQueueSizeExceeded": true
         },
         {
-            "Type": "nap::UDPServer",
+            "Type": "nap::VBANUDPServer",
             "mID": "UDPServer",
             "Thread": "UDPThread",
             "AllowFailure": false,
