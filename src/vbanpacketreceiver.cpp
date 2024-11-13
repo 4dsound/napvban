@@ -20,13 +20,15 @@ namespace nap
 	bool VBANPacketReceiver::init(utility::ErrorState& errorState)
 	{
 		mServer->registerListenerSlot(mPacketReceivedSlot);
+
 		return true;
 	}
 
 
 	void VBANPacketReceiver::packetReceived(const UDPPacket &packet)
 	{
-		std::lock_guard<std::mutex> lock(mMutex);
+		// Process adding or removing receivers
+		mTaskQueue.process();
 
 		utility::ErrorState errorState;
 		if (checkPacket(errorState, &packet.data()[0], packet.size()) )
@@ -39,8 +41,7 @@ namespace nap
 			{
 				// get stream name, use it to forward buffers to any registered stream audio receivers
 				const std::string stream_name(hdr->streamname);
-
-				for (auto *receiver: mListeners)
+				for (auto *receiver: mReceivers)
 				{
 					if (receiver->getStreamName() == stream_name)
 					{
@@ -158,31 +159,36 @@ namespace nap
 
 	void VBANPacketReceiver::registerStreamListener(IVBANStreamListener* receiver)
 	{
-		std::lock_guard<std::mutex> lock(mMutex);
-		auto it = std::find_if(mListeners.begin(), mListeners.end(), [receiver](auto& a) { return a == receiver; });
-		assert(it == mListeners.end()); // receiver already registered
-		if (it == mListeners.end())
+		mTaskQueue.enqueue([this, receiver]()
 		{
-			mListeners.emplace_back(receiver);
-		}
+			auto it = std::find_if(mReceivers.begin(), mReceivers.end(), [receiver](auto& a) { return a == receiver; });
+
+			assert(it == mReceivers.end()); // receiver already registered
+
+			if (it == mReceivers.end())
+			{
+				mReceivers.emplace_back(receiver);
+			}
+		});
 	}
 
 
 	void VBANPacketReceiver::removeStreamListener(IVBANStreamListener* receiver)
 	{
-		std::lock_guard<std::mutex> lock(mMutex);
-
-		auto it = std::find_if(mListeners.begin(), mListeners.end(), [receiver](auto& a)
+		mTaskQueue.enqueue([this, receiver]()
 		{
-			return a == receiver;
+			auto it = std::find_if(mReceivers.begin(), mReceivers.end(), [receiver](auto& a)
+			{
+				return a == receiver;
+			});
+
+			assert(it != mReceivers.end()); // receiver not registered
+
+			if(it != mReceivers.end())
+			{
+				mReceivers.erase(it);
+			}
 		});
-
-		assert(it != mListeners.end()); // receiver not registered
-
-		if (it != mListeners.end())
-		{
-			mListeners.erase(it);
-		}
 	}
 
 }
