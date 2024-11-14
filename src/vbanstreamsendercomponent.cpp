@@ -76,4 +76,10 @@ namespace nap
 	}
 
 
+	void VBANStreamSenderComponentInstance::setStreamName(const std::string& name)
+	{
+		mVBANSenderNode->setStreamName(name);
+	}
+
+
 }

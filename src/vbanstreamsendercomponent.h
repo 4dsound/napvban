@@ -85,6 +85,12 @@ namespace nap
 			 */
 			OutputPin* getOutputForChannel(int channel) override { return mInput->getOutputForChannel(channel); }
 
+			/**
+			 * Sets the name of the stream being sent
+			 * @param name New name of the stream
+			 */
+			void setStreamName(const std::string& name);
+
 		private:
 			ComponentInstancePtr<audio::AudioComponentBase> mInput	= {this, &VBANStreamSenderComponent::mInput};
 			audio::SafeOwner<audio::VBANSenderNode> mVBANSenderNode = nullptr;
