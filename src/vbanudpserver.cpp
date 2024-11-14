@@ -10,9 +10,9 @@
 
 // ASIO Includes
 #include <asio/ip/udp.hpp>
-#include <asio/io_service.hpp>
 #include <asio/ts/buffer.hpp>
 #include <asio/ts/internet.hpp>
+#include <asio/io_service.hpp>
 
 #include <thread>
 #include <vban/vban.h>
@@ -21,6 +21,7 @@ RTTI_BEGIN_CLASS(nap::VBANUDPServer)
 	RTTI_PROPERTY("Port",			        &nap::VBANUDPServer::mPort,			                nap::rtti::EPropertyMetaData::Default)
 	RTTI_PROPERTY("IP Address",		        &nap::VBANUDPServer::mIPAddress,	                nap::rtti::EPropertyMetaData::Default)
 	RTTI_PROPERTY("Multicast Groups",		&nap::VBANUDPServer::mMulticastGroups,	            nap::rtti::EPropertyMetaData::Default)
+	RTTI_PROPERTY("ReceiveBufferSize", &nap::VBANUDPServer::mReceiveBufferSize, nap::rtti::EPropertyMetaData::Default)
 RTTI_END_CLASS
 
 using namespace asio::ip;
@@ -31,10 +32,10 @@ namespace nap
 	class VBANUDPServer::Impl
 	{
 	public:
-		explicit Impl(asio::io_context& service) : mIOContext(service){}
+		explicit Impl() {}
 
 		// ASIO
-		asio::io_context& 			mIOContext;
+		asio::io_context 			mIOContext;
 		asio::ip::udp::endpoint 	mRemoteEndpoint;
 		asio::ip::udp::socket       mSocket{ mIOContext };
 	};
@@ -43,13 +44,12 @@ namespace nap
 	VBANUDPServer::~VBANUDPServer() = default;
 
 
-	bool nap::VBANUDPServer::onStart(nap::utility::ErrorState &errorState)
+	bool nap::VBANUDPServer::start(nap::utility::ErrorState &errorState)
 	{
-		// create asio implementation
-		mImpl = std::make_unique<VBANUDPServer::Impl>(getIOContext());
-
 		// when asio error occurs, init_success indicates whether initialization should fail or succeed
 		bool init_success = false;
+
+		mImpl = std::make_unique<Impl>();
 
 		// try to open socket
 		asio::error_code errorCode;
@@ -72,7 +72,7 @@ namespace nap
 
 		nap::Logger::info(*this, "Listening at port %i", mPort);
 		mImpl->mSocket.bind(udp::endpoint(address,mPort), errorCode);
-		mImpl->mSocket.set_option(asio::ip::udp::socket::receive_buffer_size(mRecvBufSize));
+		mImpl->mSocket.set_option(asio::ip::udp::socket::receive_buffer_size(mReceiveBufferSize));
 		if (handleAsioError(errorCode, errorState, init_success))
 			return init_success;
 
@@ -87,18 +87,21 @@ namespace nap
 				return init_success;
 		}
 
-		// init UDPAdapter, registering the server to an UDPThread
-		if (!UDPAdapter::init(errorState))
-			return false;
-
-		//change nic net.link.generic.system.rcvq_maxlen
+		mRunning.store(true);
+		mThread = std::make_unique<std::thread>([&](){
+			while (mRunning.load())
+				process();
+		});
 
 		return true;
 	}
 
 
-	void nap::VBANUDPServer::onStop()
+	void nap::VBANUDPServer::stop()
 	{
+		mRunning.store(false);
+		mThread->join();
+
 		asio::error_code asio_error_code;
 		mImpl->mSocket.close(asio_error_code);
 
@@ -112,41 +115,27 @@ namespace nap
 	}
 
 
-	void VBANUDPServer::changeRecvBufSize(int newBufSize)
+	void nap::VBANUDPServer::process()
 	{
-		if (mRecvBufSize != newBufSize)
+		auto available = mImpl->mSocket.available();
+		if (available < VBAN_DATA_MAX_SIZE)
+			return;
+
+		asio::error_code asio_error_code;
+		mBuffer.resize(VBAN_DATA_MAX_SIZE);
+
+		uint len = mImpl->mSocket.receive(asio::buffer(mBuffer));
+		if (len > 0)
 		{
-			mRecvBufSize = newBufSize;
-			mImpl->mSocket.set_option(asio::ip::udp::socket::receive_buffer_size(mRecvBufSize));
+			assert(len <= VBAN_DATA_MAX_SIZE);
+			std::lock_guard<std::mutex> lock(mMutex);
+			const UDPPacket packet(std::move(mBuffer));
+
+			packetReceived.trigger(packet);
 		}
-	}
 
-
-	void nap::VBANUDPServer::onProcess()
-	{
-		if (!mIsRecieveing)
-		{
-			auto available = mImpl->mSocket.available();
-			if (available)
-				mIsRecieveing = true;
-		}
-		else {
-				asio::error_code asio_error_code;
-				mBuffer.resize(VBAN_DATA_MAX_SIZE);
-
-				uint len = mImpl->mSocket.receive(asio::buffer(mBuffer));
-				if (len > 0)
-				{
-					assert(len <= VBAN_DATA_MAX_SIZE);
-					std::lock_guard<std::mutex> lock(mMutex);
-					const UDPPacket packet(std::move(mBuffer));
-
-					packetReceived.trigger(packet);
-				}
-
-				if (asio_error_code)
-					nap::Logger::error(*this, asio_error_code.message());
-			}
+		if (asio_error_code)
+			nap::Logger::error(*this, asio_error_code.message());
 	}
 
 
@@ -162,5 +151,19 @@ namespace nap
 		std::lock_guard<std::mutex> lock(mMutex);
 		packetReceived.disconnect(slot);
 	}
+
+
+	bool nap::VBANUDPServer::handleAsioError(const std::error_code& errorCode, utility::ErrorState& errorState, bool& success)
+	{
+		if (errorCode)
+		{
+			success = false;
+			errorState.fail(errorCode.message());
+			return true;
+		}
+
+		return false;
+	}
+
 
 }

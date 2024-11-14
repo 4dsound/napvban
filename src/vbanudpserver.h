@@ -7,6 +7,7 @@
 #include <concurrentqueue.h>
 #include <nap/numeric.h>
 #include <nap/signalslot.h>
+#include <udppacket.h>
 
 // Local includes
 #include <asio/buffer.hpp>
@@ -14,20 +15,20 @@
 #include <udpadapter.h>
 #include <vban/vban.h>
 
-#include "udpadapter.h"
-#include "udppacket.h"
 
 namespace nap
 {
 
-	class NAPAPI VBANUDPServer final : public UDPAdapter
+
+	/**
+	 * VBAN specific variation on the UDPServer.
+	 */
+	class NAPAPI VBANUDPServer final : public Device
 	{
-		RTTI_ENABLE(UDPAdapter)
+		RTTI_ENABLE(Device)
 	public:
 		VBANUDPServer();
 		virtual ~VBANUDPServer();
-
-		void changeRecvBufSize(int newBufSize);
 
 		/**
 		 * Connects a listener slot to the packetReceived signal. Thread-Safe
@@ -44,7 +45,7 @@ namespace nap
 		int mPort 						= 13251;		///< Property: 'Port' the port the server socket binds to
 		std::string mIPAddress			= "";	        ///< Property: 'IP Address' local ip address to bind to, if left empty will bind to any local address
 		std::vector<std::string> mMulticastGroups;      ///< Property: 'Multicast Groups' multicast groups to join
-		bool mIsRecieveing = false;
+		int mReceiveBufferSize = 1000000;				///< Property: 'ReceiveBufferSize'
 
 	protected:
 		/**
@@ -52,31 +53,22 @@ namespace nap
 		 */
 		Signal<const UDPPacket&> packetReceived;
 
-		/**
-		 * Called when server socket needs to be created
-		 * @param errorState The error state
-		 * @return: true on success
-		 */
-		bool onStart(utility::ErrorState& errorState) final;
-
-		/**
-		 * Called when socket needs to be closed
-		 */
-		void onStop() final;
-
-		/**
-		 * The process function
-		 */
-		void onProcess() final;
+		// Inherited from Device
+		bool start(utility::ErrorState& errorState) override final;
+		void stop() override final;
 
 	private:
+		void process();
+		bool handleAsioError(const std::error_code& errorCode, utility::ErrorState& errorState, bool& success);
+
 		// Server specific ASIO implementation
 		class Impl;
 		std::unique_ptr<Impl> mImpl;
-		// mutex
+
+		std::unique_ptr<std::thread> mThread = nullptr;
+		std::atomic<bool> mRunning;
 		std::mutex mMutex;
 		std::vector<uint8> mBuffer;
-		int mRecvBufSize = 1000000;
 	};
 
 } // nap
