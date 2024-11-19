@@ -57,12 +57,15 @@ namespace nap
 		private:
 			// Inherited from Node
 			void process() override;
+			void bufferSizeChanged(int bufferSize) override;
 
 			moodycamel::ConcurrentQueue<float> mQueue;  // New samples are queued here from a different thread.
 			std::vector<SampleValue> mSamples;
-			int mBufferSize;
 			std::atomic<int> mMaxQueueSize = { 4096 }; // The amount of samples that the queue is allowed to have
 			std::atomic<bool> mVerbose = { false }; // Enable logging
+
+			int mSpareLatency = 1024; // Number of samples that will be spared before starting playback. Should always be smaller than or equal to mSpareBufferSize.
+			bool mSavingSpare = true;
 		};
 
 	}

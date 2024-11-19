@@ -19,22 +19,21 @@ namespace nap
 
 		SampleQueuePlayerNode::SampleQueuePlayerNode(NodeManager& manager) : Node(manager)
 		{
-			mBufferSize = getBufferSize();
-			mSamples = std::vector<SampleValue>(mBufferSize);
+			mSamples.resize(getBufferSize());
 		}
 
 
 		void SampleQueuePlayerNode::queueSamples(const float* samples, size_t numSamples)
 		{
 			// check if queue size is exceeded, if so throw a warning, if not queue the samples
-			if(mQueue.size_approx() <= mMaxQueueSize)
+			if(mQueue.size_approx() <= mMaxQueueSize + mSpareLatency)
 			{
 				if (!mQueue.enqueue_bulk(samples, numSamples))
 				{
 					nap::Logger::error("%s: Failed to allocate memory for queue buffer",  std::string(get_type().get_name()).c_str());
 				}
-			}else
-			{
+			}
+			else {
 				if(mVerbose)
 					nap::Logger::warn("%s: Dropping samples because buffer is getting to big", std::string(get_type().get_name()).c_str());
 			}
@@ -45,38 +44,53 @@ namespace nap
 		{
 			// get buffer size
 			const int available_samples = mQueue.size_approx();
-			int buffer_size_to_copy = available_samples;
-			if(available_samples > mBufferSize)
-				buffer_size_to_copy = mBufferSize;
+			// get output buffer
+			auto& outputBuffer = getOutputBuffer(audioOutput);
 
-			// if the amount of samples in the queue exceeds buffer sized used by audio service we can fill the outputbuffer
-			if(buffer_size_to_copy > 0)
+			if (mSavingSpare)
 			{
-				// get output buffer
-				auto& outputBuffer = getOutputBuffer(audioOutput);
-
-				// if sample buffer is smaller the buffersize fill beginning with silence
-				int silent_samples_num = mBufferSize - available_samples;
-				silent_samples_num = math::max(silent_samples_num, 0);
-				if(silent_samples_num > 0)
+				if (available_samples < getBufferSize() + mSpareLatency)
 				{
-					std::fill(outputBuffer.begin(), outputBuffer.begin() + silent_samples_num, 0.0f);
+					std::fill(outputBuffer.begin(), outputBuffer.end(), 0.0f);
+					return;
 				}
+				else {
+					mSavingSpare = false;
+				}
+			}
 
-				// dequeue the samples from the queue and fill the rest with the outputbuffer
-				if(mQueue.try_dequeue_bulk(mSamples.begin(), buffer_size_to_copy))
-				{
-					// fill the output buffer
-					std::memcpy(&outputBuffer.data()[silent_samples_num], mSamples.data(), buffer_size_to_copy * sizeof(SampleValue));
-				}
-			}else
+			if (mSavingSpare == false && available_samples == 0)
 			{
+				mSavingSpare = true;
+				std::fill(outputBuffer.begin(), outputBuffer.end(), 0.0f);
+				return;
+			}
+
+			if (available_samples < getBufferSize())
+			{
+				std::fill(outputBuffer.begin(), outputBuffer.end(), 0.0f);
+				return;
+			}
+
+			// dequeue the samples from the queue and fill the rest with the outputbuffer
+			if (mQueue.try_dequeue_bulk(mSamples.begin(), getBufferSize()))
+			{
+				// fill the output buffer
+				std::memcpy(&outputBuffer.data()[0], mSamples.data(), getBufferSize() * sizeof(SampleValue));
+			}
+			else {
 				// no samples in queue, fill with silence
 				if(mVerbose)
 					nap::Logger::warn("%s: Not enough samples in queue", std::string(get_type().get_name()).c_str());
-				auto& outputBuffer = getOutputBuffer(audioOutput);
 				std::fill(outputBuffer.begin(), outputBuffer.end(), 0.0f);
 			}
 		}
+
+		void SampleQueuePlayerNode::bufferSizeChanged(int bufferSize)
+		{
+			mSamples.resize(getBufferSize());
+		}
+
+
 	}
 }
