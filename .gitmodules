@@ -1,3 +1,3 @@
 [submodule "src/vban"]
 	path = src/vban
-	url = https://www.github.com/4dsound/vban
+	url = https://github.com/4dsound/vban
