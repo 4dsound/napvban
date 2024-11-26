@@ -7,8 +7,11 @@
 // Std includes
 #include <atomic>
 
+// Vban includes
 #include <vban/vban.h>
+#include <vban/vbanstreamencoder.h>
 
+// Nap includes
 #include <udpclient.h>
 
 // Audio includes
@@ -42,29 +45,35 @@ namespace nap
 			MultiInputPin inputs = {this};
 
 			void setUDPClient(UDPClient* client) { getNodeManager().enqueueTask([&, client](){ mUDPClient = client; }); }
-			void setStreamName(const std::string& name) { getNodeManager().enqueueTask([&, name](){ mStreamName = name; }); }
+			void setStreamName(const std::string& name) { mEncoder.setStreamName(name); }
+			void sendPacket(const std::vector<char>& data)
+			{
+				UDPPacket packet(reinterpret_cast<const std::vector<uint8>&>(data));
+				mUDPClient->send(std::move(packet));
+			}
 
 		private:
-			void setChannelCount(int channelCount);
-			int getChannelCount() const { return mChannelCount; }
-			void processBuffer(const SampleBuffer& buffer, int channel);
+			// Wraps result of MultiInputPin::pull so that it can be passed to VBANStreamEncoder.
+			class PullResultWrapper
+			{
+			public:
+				PullResultWrapper() = default;
+				const std::vector<SampleValue>& operator[](int i) const { return *mPullResult[i]; }
+				std::vector<std::vector<SampleValue>*>& get() { return mPullResult; }
 
+			private:
+				std::vector<std::vector<SampleValue>*> mPullResult;
+			};
+
+		private:
 			// Inherited from Node
 			void process() override;
 			void sampleRateChanged(float) override;
 
-			std::vector<std::vector<audio::SampleValue>*> mInputPullResult;
-			int mChannelCount = 0;
-			int mPacketChannelSize = 0;
-			int mPacketWritePosition = 0;
-			std::vector<nap::uint8> mPacketBuffer;
-			VBanHeader* mPacketHeader = nullptr;
-
-			size_t mPacketSize = 0;
-			uint32_t mFrameCounter = 0;
-			uint8_t mSampleRateFormat = 0;
-			std::string mStreamName;
 			UDPClient* mUDPClient = nullptr;
+			vban::VBANStreamEncoder<VBANSenderNode> mEncoder;
+			PullResultWrapper mInputPullResult;
+			std::vector<nap::uint8> mData;
 		};
 
 	}
