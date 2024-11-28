@@ -1,0 +1,3 @@
+[submodule "thirdparty/vban"]
+	path = thirdparty/vban
+	url = https://github.com/4dsound/vban
