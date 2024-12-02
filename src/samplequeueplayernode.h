@@ -50,6 +50,12 @@ namespace nap
 			void setMaxQueueSize(int value) { mMaxQueueSize = value; }
 
 			/**
+			 * Sets the latency that will be used to compensate for irregular supply of samples to the queue.
+			 * @param numberOfBuffers Latency specified as a multiple of the audio buffersize.
+			 */
+			void setLatency(int numberOfBuffers);
+
+			/**
 			 * @param value True if logging is enabled.
 			 */
 			void setVerbose(bool value) { mVerbose = value; }
@@ -58,13 +64,16 @@ namespace nap
 			// Inherited from Node
 			void process() override;
 			void bufferSizeChanged(int bufferSize) override;
+			void setSpareLatency(int spareLatency); // Sets the spare latency in samples and clears the queue;
 
 			moodycamel::ConcurrentQueue<float> mQueue;  // New samples are queued here from a different thread.
 			std::vector<SampleValue> mSamples;
 			std::atomic<int> mMaxQueueSize = { 4096 }; // The amount of samples that the queue is allowed to have
 			std::atomic<bool> mVerbose = { false }; // Enable logging
 
-			int mSpareLatency = 1024; // Number of samples that will be spared before starting playback. Should always be smaller than or equal to mSpareBufferSize.
+			int mSpareLatency = 0; // Spare latency used to compensate for irregular supply of samples.
+			int mSpareLatencyInBuffers = 0; // Spare latency as a multiple of the buffersize.
+			std::atomic<int> mNewSpareLatencyInBuffers = 0; // Atomic to store values for mSpareLatencyInBuffers as a multiple of the buffersize.
 			bool mSavingSpare = true;
 		};
 

@@ -9,6 +9,7 @@
 #include <udpserver.h>
 #include <udppacket.h>
 #include <utility/threading.h>
+#include <audio/service/audioservice.h>
 
 #include "vbanudpserver.h"
 
@@ -28,6 +29,13 @@ namespace nap
 		 * @param buffers multichannel audio buffer containing audio for each channel in the stream
 		 */
 		virtual void pushBuffers(const std::vector<std::vector<float>>& buffers) = 0;
+
+		/**
+		 * Sets additional latency used to compensate for packets arriving late.
+		 * This latency needs to be implemented by the stream listener.
+		 * @param value Latency specified in number of audio buffers of the current audio system. (usually NodeManager::getBufferSize())
+		 */
+		virtual void setLatency(int value) = 0;
 
 		/**
 		 * @return Has to return the name of the VBAN audio stream that this receiver will handle.
@@ -66,6 +74,17 @@ namespace nap
 		 */
 		void removeStreamListener(IVBANStreamListener* listener);
 
+		/**
+		 * Set the latency of the receiver as a multiple of the current buffersize.
+		 * @param value Latency as a multiple of the buffersize.
+		 */
+		void setLatency(int value);
+
+		/**
+		 * @return Return additional latency as a multiple of the current buffer size.
+		 */
+		int getLatency() const { return mLatency; }
+
 	public:
 		ResourcePtr<VBANUDPServer> mServer = nullptr; ///< Property: 'Server' Pointer to the VBAN UDP server receiving the packets
 
@@ -78,9 +97,10 @@ namespace nap
 		bool checkPcmPacket(utility::ErrorState& errorState, nap::uint8 const* buffer, size_t size);
 
 	private:
+		std::mutex mReceiverMutex;
 		std::vector<IVBANStreamListener*> mReceivers;
-		TaskQueue mTaskQueue;
 		std::vector<std::vector<float>> mBuffers; // Here as to not reallocate them for every received packet
+		int mLatency = 1;
 	};
 
 

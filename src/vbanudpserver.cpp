@@ -20,7 +20,6 @@
 RTTI_BEGIN_CLASS(nap::VBANUDPServer)
 	RTTI_PROPERTY("Port",			        &nap::VBANUDPServer::mPort,			                nap::rtti::EPropertyMetaData::Default)
 	RTTI_PROPERTY("IP Address",		        &nap::VBANUDPServer::mIPAddress,	                nap::rtti::EPropertyMetaData::Default)
-	RTTI_PROPERTY("Multicast Groups",		&nap::VBANUDPServer::mMulticastGroups,	            nap::rtti::EPropertyMetaData::Default)
 	RTTI_PROPERTY("ReceiveBufferSize", &nap::VBANUDPServer::mReceiveBufferSize, nap::rtti::EPropertyMetaData::Default)
 RTTI_END_CLASS
 
@@ -75,17 +74,6 @@ namespace nap
 		mImpl->mSocket.set_option(asio::ip::udp::socket::receive_buffer_size(mReceiveBufferSize));
 		if (handleAsioError(errorCode, errorState, init_success))
 			return init_success;
-
-		for (const auto& multicast_group : mMulticastGroups)
-		{
-			auto multicast_address = make_address(multicast_group, errorCode);
-			if (handleAsioError(errorCode, errorState, init_success))
-				return init_success;
-
-			mImpl->mSocket.set_option(multicast::join_group(multicast_address), errorCode);
-			if (handleAsioError(errorCode, errorState, init_success))
-				return init_success;
-		}
 
 		mRunning.store(true);
 		mThread = std::make_unique<std::thread>([&](){

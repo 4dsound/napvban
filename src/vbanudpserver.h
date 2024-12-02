@@ -44,18 +44,17 @@ namespace nap
 
 		int mPort 						= 13251;		///< Property: 'Port' the port the server socket binds to
 		std::string mIPAddress			= "";	        ///< Property: 'IP Address' local ip address to bind to, if left empty will bind to any local address
-		std::vector<std::string> mMulticastGroups;      ///< Property: 'Multicast Groups' multicast groups to join
 		int mReceiveBufferSize = 1000000;				///< Property: 'ReceiveBufferSize'
+
+		// Inherited from Device
+		bool start(utility::ErrorState& errorState) override final;
+		void stop() override final;
 
 	protected:
 		/**
 		 * packet received signal will be dispatched on the thread this UDPServer is registered to, see UDPThread
 		 */
 		Signal<const UDPPacket&> packetReceived;
-
-		// Inherited from Device
-		bool start(utility::ErrorState& errorState) override final;
-		void stop() override final;
 
 	private:
 		void process();

@@ -40,12 +40,31 @@ namespace nap
 		}
 
 
+		void SampleQueuePlayerNode::setLatency(int numberOfBuffers)
+		{
+			mNewSpareLatencyInBuffers.store(numberOfBuffers);
+		}
+
+
 		void SampleQueuePlayerNode::process()
 		{
-			// get buffer size
-			const int available_samples = mQueue.size_approx();
 			// get output buffer
 			auto& outputBuffer = getOutputBuffer(audioOutput);
+
+			// Update spare latency
+			auto newSpareLatencyInBuffers = mNewSpareLatencyInBuffers.load();
+			if (newSpareLatencyInBuffers != mSpareLatencyInBuffers)
+			{
+				mSpareLatencyInBuffers = newSpareLatencyInBuffers;
+				while (mQueue.try_dequeue_bulk(mSamples.data(), mSamples.size()) > 0);
+				mSpareLatency = mSpareLatencyInBuffers * getBufferSize();
+				mSavingSpare = true;
+				std::fill(outputBuffer.begin(), outputBuffer.end(), 0.0f);
+				return;
+			}
+
+			// get buffer size
+			const int available_samples = mQueue.size_approx();
 
 			if (mSavingSpare)
 			{
@@ -59,19 +78,6 @@ namespace nap
 				}
 			}
 
-			if (mSavingSpare == false && available_samples == 0)
-			{
-				mSavingSpare = true;
-				std::fill(outputBuffer.begin(), outputBuffer.end(), 0.0f);
-				return;
-			}
-
-			if (available_samples < getBufferSize())
-			{
-				std::fill(outputBuffer.begin(), outputBuffer.end(), 0.0f);
-				return;
-			}
-
 			// dequeue the samples from the queue and fill the rest with the outputbuffer
 			if (mQueue.try_dequeue_bulk(mSamples.begin(), getBufferSize()))
 			{
@@ -79,16 +85,19 @@ namespace nap
 				std::memcpy(&outputBuffer.data()[0], mSamples.data(), getBufferSize() * sizeof(SampleValue));
 			}
 			else {
-				// no samples in queue, fill with silence
-				if(mVerbose)
-					nap::Logger::warn("%s: Not enough samples in queue", std::string(get_type().get_name()).c_str());
+				// not enough samples in queue, fill with silence
+				mSavingSpare = true;
 				std::fill(outputBuffer.begin(), outputBuffer.end(), 0.0f);
 			}
 		}
 
+
 		void SampleQueuePlayerNode::bufferSizeChanged(int bufferSize)
 		{
 			mSamples.resize(getBufferSize());
+			while (mQueue.try_dequeue_bulk(mSamples.data(), mSamples.size()) > 0);
+			mSpareLatency = mSpareLatencyInBuffers * getBufferSize();
+			mSavingSpare = true;
 		}
 
 

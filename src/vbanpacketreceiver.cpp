@@ -5,7 +5,6 @@
 #include <nap/logger.h>
 
 #include "vbanpacketreceiver.h"
-#include "vbanstreamplayercomponent.h"
 
 #include "vban/vban.h"
 #include "vbanutils.h"
@@ -27,11 +26,10 @@ namespace nap
 
 	void VBANPacketReceiver::packetReceived(const UDPPacket &packet)
 	{
-		// Process adding or removing receivers
-		mTaskQueue.process();
+		std::lock_guard<std::mutex> lock(mReceiverMutex);
 
 		utility::ErrorState errorState;
-		if (checkPacket(errorState, &packet.data()[0], packet.size()) )
+		if (checkPacket(errorState, &packet.data()[0], packet.size()))
 		{
 			struct VBanHeader const *const hdr = (struct VBanHeader *) (&packet.data()[0]);
 
@@ -45,6 +43,13 @@ namespace nap
 				{
 					if (receiver->getStreamName() == stream_name)
 					{
+						// Check if packet samplerate matches the current napaudio samplerate.
+						if (sample_rate != receiver->getSampleRate())
+						{
+							nap::Logger::warn("Receiving VBAN packet with non matching samplerate: %s", std::to_string(sample_rate).c_str());
+							return;
+						}
+
 						// get packet meta-data
 						int const nb_samples = hdr->format_nbs + 1;
 						int const nb_channels = hdr->format_nbc + 1;
@@ -159,36 +164,36 @@ namespace nap
 
 	void VBANPacketReceiver::registerStreamListener(IVBANStreamListener* receiver)
 	{
-		mTaskQueue.enqueue([this, receiver]()
+		std::lock_guard<std::mutex> lock(mReceiverMutex);
+		auto it = std::find_if(mReceivers.begin(), mReceivers.end(), [receiver](auto& a)
 		{
-			auto it = std::find_if(mReceivers.begin(), mReceivers.end(), [receiver](auto& a) { return a == receiver; });
-
-			assert(it == mReceivers.end()); // receiver already registered
-
-			if (it == mReceivers.end())
-			{
-				mReceivers.emplace_back(receiver);
-			}
+			return a == receiver;
 		});
+
+		assert(it == mReceivers.end()); // receiver already registered
+		mReceivers.emplace_back(receiver);
 	}
 
 
 	void VBANPacketReceiver::removeStreamListener(IVBANStreamListener* receiver)
 	{
-		mTaskQueue.enqueue([this, receiver]()
+		std::lock_guard<std::mutex> lock(mReceiverMutex);
+		auto it = std::find_if(mReceivers.begin(), mReceivers.end(), [receiver](auto& a)
 		{
-			auto it = std::find_if(mReceivers.begin(), mReceivers.end(), [receiver](auto& a)
-			{
-				return a == receiver;
-			});
-
-			assert(it != mReceivers.end()); // receiver not registered
-
-			if(it != mReceivers.end())
-			{
-				mReceivers.erase(it);
-			}
+			return a == receiver;
 		});
+
+		assert(it != mReceivers.end()); // receiver not registered
+		mReceivers.erase(it);
+	}
+
+
+	void VBANPacketReceiver::setLatency(int value)
+	{
+		std::lock_guard<std::mutex> lock(mReceiverMutex);
+		mLatency = value;
+		for (auto& receiver : mReceivers)
+			receiver->setLatency(value);
 	}
 
 }

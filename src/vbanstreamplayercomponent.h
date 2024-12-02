@@ -67,19 +67,10 @@ namespace nap
 			RTTI_ENABLE(AudioComponentBaseInstance)
 
 		public:
-			/**
-			 * Constructor
-			 * @param entity entity
-			 * @param resource resource
-			 */
 			VBANStreamPlayerComponentInstance(EntityInstance& entity, Component& resource)
 				: AudioComponentBaseInstance(entity, resource) { }
 
-			/**
-			 * Initializes the instance, returns false on failure
-			 * @param errorState contains any error messages
-			 * @return false on failure
-			 */
+			// Inherited from ComponentInstance
 			bool init(utility::ErrorState& errorState) override;
 
 			/**
@@ -88,43 +79,21 @@ namespace nap
 			 */
 			void onDestroy() override;
 
-			/**
-			 * Returns amount of channels
-			 * @return amount of channels
-			 */
+			// Inherited from AudioComponentBaseInstance
 			int getChannelCount() const override { return mBufferPlayers.size(); }
-			int getPortNumber() const  {return mVbanReceiver->mServer->mPort;}
-
-			/**
-			 * Returns output pin for given channel, no bound checking, assert on out of bound
-			 * @param channel the channel
-			 * @return OutputPin for channel
-			 */
 			OutputPin* getOutputForChannel(int channel) override { assert(channel < mBufferPlayers.size()); return &mBufferPlayers[channel]->audioOutput; }
 
-			/**
-			 * Pushes the buffers to the buffer players
-			 * @param buffers the buffers to push
-			 */
+			// Inherited from IVBANStreamListener
 			void pushBuffers(const std::vector<std::vector<float>>& buffers) override;
+			void setLatency(int latencyInBuffers) override;
+			const std::string& getStreamName() override { return mStreamName; }
+			int getSampleRate() const override{ return mSampleRate; }
 
 			/**
 			 * Sets streamname this VBANStreamPlayer accepts
 			 * @param streamName this VBANStreamPlayer accepts
 			 */
 			void setStreamName(const std::string& streamName){ mStreamName = streamName; }
-
-			/**
-			 * Returns streamname this VBANStreamPlayer accepts
-			 * @return streamname this VBANStreamPlayer accepts
-			 */
-			const std::string& getStreamName() override { return mStreamName; }
-
-			/**
-			 * Returns sample rate used by listener
-			 * @return sample rate used by listener
-			 */
-			int getSampleRate() const override{ return mSampleRate; }
 
 		private:
 			std::vector<SafeOwner<SampleQueuePlayerNode>> mBufferPlayers;
