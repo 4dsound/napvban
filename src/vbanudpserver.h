@@ -50,6 +50,11 @@ namespace nap
 		bool start(utility::ErrorState& errorState) override final;
 		void stop() override final;
 
+		/**
+		 * @return Lock this mutex to lock the VABN UDP processing thread.
+		 */
+		std::mutex& getMutex() { return mMutex; }
+
 	protected:
 		/**
 		 * packet received signal will be dispatched on the thread this UDPServer is registered to, see UDPThread
