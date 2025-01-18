@@ -84,7 +84,7 @@ namespace nap
 			OutputPin* getOutputForChannel(int channel) override { assert(channel < mBufferPlayers.size()); return &mBufferPlayers[channel]->audioOutput; }
 
 			// Inherited from IVBANStreamListener
-			void pushBuffers(const std::vector<std::vector<float>>& buffers) override;
+			bool pushBuffers(const std::vector<std::vector<float>>& buffers, utility::ErrorState& errorState) override;
 			void setLatency(int latencyInBuffers) override;
 			const std::string& getStreamName() override { return mStreamName; }
 			int getSampleRate() const override{ return mSampleRate; }

@@ -70,15 +70,17 @@ namespace nap
 		}
 
 
-		void VBANStreamPlayerComponentInstance::pushBuffers(const std::vector<std::vector<float>>& buffers)
+		bool VBANStreamPlayerComponentInstance::pushBuffers(const std::vector<std::vector<float>>& buffers, utility::ErrorState& errorState)
 		{
 			if (buffers.size() >= getChannelCount())
 			{
 				for(int i = 0; i < mBufferPlayers.size(); i++)
 					mBufferPlayers[i]->queueSamples(&buffers[i][0], buffers[i].size());
+				return true;
 			}
 			else {
-				nap::Logger::warn("error received %i buffers but expected %i", buffers.size(), getChannelCount());
+				errorState.fail("Received %i buffers but expected %i", buffers.size(), getChannelCount());
+				return false;
 			}
 		}
 

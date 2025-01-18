@@ -29,64 +29,91 @@ namespace nap
 		std::lock_guard<std::mutex> lock(mReceiverMutex);
 
 		utility::ErrorState errorState;
-		if (checkPacket(errorState, &packet.data()[0], packet.size()))
+
+		// Check packet
+		if (!checkPacket(errorState, &packet.data()[0], packet.size()))
 		{
-			struct VBanHeader const *const hdr = (struct VBanHeader *) (&packet.data()[0]);
+			mErrorMessage = errorState.toString();
+			mCorrectPacketCounter = 0;
+			return;
+		}
 
-			// get sample rate
-			int const sample_rate_format = hdr->format_SR & VBAN_SR_MASK;
-			if (int sample_rate = 0; utility::getSampleRateFromVBANSampleRateFormat(sample_rate, sample_rate_format, errorState))
+		struct VBanHeader const *const hdr = (struct VBanHeader *) (&packet.data()[0]);
+
+		// get sample rate
+		int const sample_rate_format = hdr->format_SR & VBAN_SR_MASK;
+		int sample_rate = 0;
+		if (!utility::getSampleRateFromVBANSampleRateFormat(sample_rate, sample_rate_format, errorState))
+		{
+			mErrorMessage = errorState.toString();
+			mCorrectPacketCounter = 0;
+			return;
+		}
+
+		// get stream name, use it to forward buffers to any registered stream audio receivers
+		const std::string stream_name(hdr->streamname);
+		bool streamNameFound = false;
+
+		for (auto *receiver: mReceivers)
+		{
+			if (receiver->getStreamName() == stream_name)
 			{
-				// get stream name, use it to forward buffers to any registered stream audio receivers
-				const std::string stream_name(hdr->streamname);
-				for (auto *receiver: mReceivers)
+				streamNameFound = true;
+
+				// Check if packet samplerate matches the current napaudio samplerate.
+				if (sample_rate != receiver->getSampleRate())
 				{
-					if (receiver->getStreamName() == stream_name)
+					errorState.fail("%s: Samplerate mismatch.", stream_name.c_str());
+					mErrorMessage = errorState.toString();
+					mCorrectPacketCounter = 0;
+					continue;
+				}
+
+				// get packet meta-data
+				int const nb_samples = hdr->format_nbs + 1;
+				int const nb_channels = hdr->format_nbc + 1;
+				size_t sample_size = VBanBitResolutionSize[static_cast<const VBanBitResolution>(hdr->format_bit &
+					VBAN_BIT_RESOLUTION_MASK)];
+				size_t payload_size = nb_samples * sample_size * nb_channels;
+
+				// Resize buffers to push to players
+				int float_buffer_size = int(payload_size / sample_size) / nb_channels;
+				mBuffers.resize(nb_channels);
+				for (auto& buffer: mBuffers)
+					buffer.resize(float_buffer_size);
+
+				// convert WAVE PCM multiplexed signal into floating point (SampleValue) buffers for each channel
+				for (size_t i = 0; i < float_buffer_size; i++)
+				{
+					for (int c = 0; c < nb_channels; c++)
 					{
-						// Check if packet samplerate matches the current napaudio samplerate.
-						if (sample_rate != receiver->getSampleRate())
-						{
-							nap::Logger::warn("Receiving VBAN packet with non matching samplerate: %s", std::to_string(sample_rate).c_str());
-							return;
-						}
+						size_t pos = (i * nb_channels * 2) + (c * 2) + VBAN_HEADER_SIZE;
+						char byte_1 = packet.data()[pos];
+						char byte_2 = packet.data()[pos + 1];
+						short original_value = ((static_cast<short>(byte_2)) << 8) | (0x00ff & byte_1);
 
-						// get packet meta-data
-						int const nb_samples = hdr->format_nbs + 1;
-						int const nb_channels = hdr->format_nbc + 1;
-						size_t sample_size = VBanBitResolutionSize[static_cast<const VBanBitResolution>(hdr->format_bit &
-							VBAN_BIT_RESOLUTION_MASK)];
-						size_t payload_size = nb_samples * sample_size * nb_channels;
-
-						// Resize buffers to push to players
-						int float_buffer_size = int(payload_size / sample_size) / nb_channels;
-						mBuffers.resize(nb_channels);
-						for (auto& buffer: mBuffers)
-							buffer.resize(float_buffer_size);
-
-						// convert WAVE PCM multiplexed signal into floating point (SampleValue) buffers for each channel
-						for (size_t i = 0; i < float_buffer_size; i++)
-						{
-							for (int c = 0; c < nb_channels; c++)
-							{
-								size_t pos = (i * nb_channels * 2) + (c * 2) + VBAN_HEADER_SIZE;
-								char byte_1 = packet.data()[pos];
-								char byte_2 = packet.data()[pos + 1];
-								short original_value = ((static_cast<short>(byte_2)) << 8) | (0x00ff & byte_1);
-
-								mBuffers[c][i] = ((float) original_value) / (float) 32768;
-							}
-						}
-
-						receiver->pushBuffers(mBuffers);
+						mBuffers[c][i] = ((float) original_value) / (float) 32768;
 					}
 				}
-			}
-			else {
-				nap::Logger::error(errorState.toString());
+
+				if (receiver->pushBuffers(mBuffers, errorState))
+				{
+					// We have handled a packet correctly
+					if (mCorrectPacketCounter < mReceivers.size())
+						mCorrectPacketCounter++;
+				}
+				else {
+					// Handle the error
+					mErrorMessage = stream_name + ": " + errorState.toString();
+					mCorrectPacketCounter = 0;
+				}
 			}
 		}
-		else {
-			nap::Logger::warn(*this, errorState.toString());
+
+		if (!errorState.check(streamNameFound, "Stream name not found: %s", stream_name.c_str()))
+		{
+			mErrorMessage = errorState.toString();
+			mCorrectPacketCounter = 0;
 		}
 	}
 
@@ -97,26 +124,26 @@ namespace nap
 		enum VBanProtocol protocol = static_cast<VBanProtocol>(VBAN_PROTOCOL_UNDEFINED_4);
 		enum VBanCodec codec = static_cast<VBanCodec>(VBAN_BIT_RESOLUTION_MAX);
 
-		if(!errorState.check(buffer != 0, "buffer is null ptr"))
+		if (!errorState.check(buffer != 0, "buffer is null ptr"))
 			return false;
 
-		if(!errorState.check(size > VBAN_HEADER_SIZE, "packet too small"))
+		if (!errorState.check(size > VBAN_HEADER_SIZE, "packet too small"))
 			return false;
 
-		if(!errorState.check(hdr->vban == *(int32_t*)("VBAN"), "invalid vban magic fourc"))
+		if (!errorState.check(hdr->vban == *(int32_t*)("VBAN"), "invalid vban magic fourc"))
 			return false;
 
-		if(!errorState.check(hdr->format_bit == VBAN_BITFMT_16_INT, "reserved format bit invalid value, only 16 bit PCM supported at this time"))
+		if (!errorState.check(hdr->format_bit == VBAN_BITFMT_16_INT, "reserved format bit invalid value, only 16 bit PCM supported at this time"))
 			return false;
 
-		if(!errorState.check((hdr->format_nbc + 1) > 0, "channel count cannot be 0 or smaller"))
+		if (!errorState.check((hdr->format_nbc + 1) > 0, "channel count cannot be 0 or smaller"))
 			return false;
 
 		// check protocol and codec
 		protocol        = static_cast<VBanProtocol>(hdr->format_SR & VBAN_PROTOCOL_MASK);
 		codec           = static_cast<VBanCodec>(hdr->format_bit & VBAN_CODEC_MASK);
 
-		if( protocol != VBAN_PROTOCOL_AUDIO )
+		if (protocol != VBAN_PROTOCOL_AUDIO)
 		{
 			switch (protocol)
 			{
@@ -132,12 +159,12 @@ namespace nap
 			}
 
 			return false;
-		}else
-		{
-			if(!errorState.check(codec == VBAN_CODEC_PCM, "unsupported codec"))
+		}
+		else {
+			if (!errorState.check(codec == VBAN_CODEC_PCM, "unsupported codec"))
 				return false;
 
-			if(!checkPcmPacket(errorState, buffer, size))
+			if (!checkPcmPacket(errorState, buffer, size))
 				return false;
 		}
 
@@ -152,10 +179,10 @@ namespace nap
 		enum VBanBitResolution const bit_resolution = static_cast<const VBanBitResolution>(hdr->format_bit & VBAN_BIT_RESOLUTION_MASK);
 		int const sample_rate_format   = hdr->format_SR & VBAN_SR_MASK;
 
-		if(!errorState.check(bit_resolution < VBAN_BIT_RESOLUTION_MAX, "invalid bit resolution"))
+		if (!errorState.check(bit_resolution < VBAN_BIT_RESOLUTION_MAX, "invalid bit resolution"))
 			return false;
 
-		if(!errorState.check(sample_rate_format < VBAN_SR_MAXNUMBER, "invalid sample rate"))
+		if (!errorState.check(sample_rate_format < VBAN_SR_MAXNUMBER, "invalid sample rate"))
 			return false;
 
 		return true;
@@ -172,6 +199,7 @@ namespace nap
 
 		assert(it == mReceivers.end()); // receiver already registered
 		mReceivers.emplace_back(receiver);
+		mReceiverCount++; // Atomic store
 	}
 
 
@@ -185,6 +213,7 @@ namespace nap
 
 		assert(it != mReceivers.end()); // receiver not registered
 		mReceivers.erase(it);
+		mReceiverCount--; // Atomic store
 	}
 
 
@@ -194,6 +223,28 @@ namespace nap
 		mLatency = value;
 		for (auto& receiver : mReceivers)
 			receiver->setLatency(value);
+	}
+
+
+	bool VBANPacketReceiver::hasErrors()
+	{
+		return (mCorrectPacketCounter.load() < mReceiverCount.load());
+	}
+
+
+	void VBANPacketReceiver::getErrorMessage(std::string &message)
+	{
+		if (hasErrors())
+		{
+			if (mReceiverMutex.try_lock())
+			{
+				message = mErrorMessage;
+				mReceiverMutex.unlock();
+			}
+		}
+		else {
+			message.clear();
+		}
 	}
 
 }

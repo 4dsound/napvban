@@ -110,14 +110,15 @@ namespace nap
 			return;
 
 		asio::error_code asio_error_code;
-		mBuffer.resize(VBAN_DATA_MAX_SIZE);
+		std::vector<uint8> buffer;
+		buffer.resize(VBAN_DATA_MAX_SIZE);
 
-		uint len = mImpl->mSocket.receive(asio::buffer(mBuffer));
+		uint len = mImpl->mSocket.receive(asio::buffer(buffer));
 		if (len > 0)
 		{
 			assert(len <= VBAN_DATA_MAX_SIZE);
 			std::lock_guard<std::mutex> lock(mMutex);
-			const UDPPacket packet(std::move(mBuffer));
+			const UDPPacket packet(std::move(buffer));
 
 			packetReceived.trigger(packet);
 		}

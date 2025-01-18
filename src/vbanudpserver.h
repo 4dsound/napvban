@@ -67,7 +67,6 @@ namespace nap
 		std::unique_ptr<std::thread> mThread = nullptr;
 		std::atomic<bool> mRunning;
 		std::mutex mMutex;
-		std::vector<uint8> mBuffer;
 	};
 
 } // nap

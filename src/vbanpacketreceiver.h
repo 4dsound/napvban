@@ -27,8 +27,10 @@ namespace nap
 		/**
 		 * Has to be overridden to handle incoming audio data for the stream
 		 * @param buffers multichannel audio buffer containing audio for each channel in the stream
+		 * @param errorState contains possible errors while handling audio buffers, like channel mismatches.
+		 * @return True on success
 		 */
-		virtual void pushBuffers(const std::vector<std::vector<float>>& buffers) = 0;
+		virtual bool pushBuffers(const std::vector<std::vector<float>>& buffers, utility::ErrorState& errorState) = 0;
 
 		/**
 		 * Sets additional latency used to compensate for packets arriving late.
@@ -85,6 +87,16 @@ namespace nap
 		 */
 		int getLatency() const { return mLatency; }
 
+		/**
+		 * @return True if incoming packets are not being handled correctly.
+		 */
+		bool hasErrors();
+
+		/**
+		 * @message When hasErrors() returns true, this is set to the current error message.
+		 */
+		void getErrorMessage(std::string& message);
+
 	public:
 		ResourcePtr<VBANUDPServer> mServer = nullptr; ///< Property: 'Server' Pointer to the VBAN UDP server receiving the packets
 
@@ -101,6 +113,9 @@ namespace nap
 		std::vector<IVBANStreamListener*> mReceivers;
 		std::vector<std::vector<float>> mBuffers; // Here as to not reallocate them for every received packet
 		int mLatency = 1;
+		std::atomic<int> mCorrectPacketCounter = { 0 };
+		std::atomic<int> mReceiverCount = { 0 };
+		std::string mErrorMessage;
 	};
 
 
