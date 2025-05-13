@@ -23,7 +23,6 @@ namespace nap
 
 		VBANSenderNode::VBANSenderNode(NodeManager& nodeManager) : Node(nodeManager), mEncoder(*this)
 		{
-			getNodeManager().registerRootProcess(*this);
 			mInputPullResult.get().reserve(2);
 			sampleRateChanged(nodeManager.getSampleRate());
 			mEncoder.setActive(true);
@@ -32,7 +31,6 @@ namespace nap
 
 		VBANSenderNode::~VBANSenderNode()
 		{
-			getNodeManager().unregisterRootProcess(*this);
 		}
 
 
