@@ -39,7 +39,13 @@ namespace nap
 		asio::ip::udp::socket       mSocket{ mIOContext };
 	};
 
-	VBANUDPServer::VBANUDPServer() = default;
+
+	VBANUDPServer::VBANUDPServer()
+	{
+		mPacket.reserve(1000000);
+	}
+
+
 	VBANUDPServer::~VBANUDPServer() = default;
 
 
@@ -110,17 +116,18 @@ namespace nap
 			return;
 
 		asio::error_code asio_error_code;
-		std::vector<uint8> buffer;
-		buffer.resize(VBAN_DATA_MAX_SIZE);
+		mPacket.resize(VBAN_DATA_MAX_SIZE);
 
-		uint len = mImpl->mSocket.receive(asio::buffer(buffer));
+		uint len = mImpl->mSocket.receive(asio::buffer(mPacket));
 		if (len > 0)
 		{
-			assert(len <= VBAN_DATA_MAX_SIZE);
+			// nap::Logger::info("Packet size: %i, Available: %i", len, available);
+			assert(len <= VBAN_PROTOCOL_MAX_SIZE);
+			mPacket.resize(len);
 			std::lock_guard<std::mutex> lock(mMutex);
-			const UDPPacket packet(std::move(buffer));
+			// const UDPPacket packet(std::move(mBuffer));
 
-			packetReceived.trigger(packet);
+			packetReceived.trigger(mPacket);
 		}
 
 		if (asio_error_code)
@@ -128,14 +135,14 @@ namespace nap
 	}
 
 
-	void nap::VBANUDPServer::registerListenerSlot(Slot<const nap::UDPPacket &>& slot)
+	void nap::VBANUDPServer::registerListenerSlot(Slot<const Packet&>& slot)
 	{
 		std::lock_guard<std::mutex> lock(mMutex);
 		packetReceived.connect(slot);
 	}
 
 
-	void nap::VBANUDPServer::removeListenerSlot(nap::Slot<const nap::UDPPacket &> &slot)
+	void nap::VBANUDPServer::removeListenerSlot(nap::Slot<const Packet&> &slot)
 	{
 		std::lock_guard<std::mutex> lock(mMutex);
 		packetReceived.disconnect(slot);

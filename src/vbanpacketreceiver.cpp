@@ -24,7 +24,7 @@ namespace nap
 	}
 
 
-	void VBANPacketReceiver::packetReceived(const UDPPacket &packet)
+	void VBANPacketReceiver::packetReceived(const VBANUDPServer::Packet &packet)
 	{
 		std::lock_guard<std::mutex> lock(mReceiverMutex);
 
@@ -54,14 +54,14 @@ namespace nap
 		const std::string stream_name(hdr->streamname);
 		bool streamNameFound = false;
 
-		for (auto *receiver: mReceivers)
+		for (auto *listener: mListeners)
 		{
-			if (receiver->getStreamName() == stream_name)
+			if (listener->getStreamName() == stream_name)
 			{
 				streamNameFound = true;
 
 				// Check if packet samplerate matches the current napaudio samplerate.
-				if (sample_rate != receiver->getSampleRate())
+				if (sample_rate != listener->getSampleRate())
 				{
 					errorState.fail("%s: Samplerate mismatch.", stream_name.c_str());
 					mErrorMessage = errorState.toString();
@@ -96,10 +96,10 @@ namespace nap
 					}
 				}
 
-				if (receiver->pushBuffers(mBuffers, errorState))
+				if (listener->pushBuffers(mBuffers, errorState))
 				{
 					// We have handled a packet correctly
-					if (mCorrectPacketCounter < mReceivers.size())
+					if (mCorrectPacketCounter < mListeners.size())
 						mCorrectPacketCounter++;
 				}
 				else {
@@ -192,13 +192,13 @@ namespace nap
 	void VBANPacketReceiver::registerStreamListener(IVBANStreamListener* receiver)
 	{
 		std::lock_guard<std::mutex> lock(mReceiverMutex);
-		auto it = std::find_if(mReceivers.begin(), mReceivers.end(), [receiver](auto& a)
+		auto it = std::find_if(mListeners.begin(), mListeners.end(), [receiver](auto& a)
 		{
 			return a == receiver;
 		});
 
-		assert(it == mReceivers.end()); // receiver already registered
-		mReceivers.emplace_back(receiver);
+		assert(it == mListeners.end()); // receiver already registered
+		mListeners.emplace_back(receiver);
 		mReceiverCount++; // Atomic store
 	}
 
@@ -206,13 +206,13 @@ namespace nap
 	void VBANPacketReceiver::removeStreamListener(IVBANStreamListener* receiver)
 	{
 		std::lock_guard<std::mutex> lock(mReceiverMutex);
-		auto it = std::find_if(mReceivers.begin(), mReceivers.end(), [receiver](auto& a)
+		auto it = std::find_if(mListeners.begin(), mListeners.end(), [receiver](auto& a)
 		{
 			return a == receiver;
 		});
 
-		assert(it != mReceivers.end()); // receiver not registered
-		mReceivers.erase(it);
+		assert(it != mListeners.end()); // receiver not registered
+		mListeners.erase(it);
 		mReceiverCount--; // Atomic store
 	}
 
@@ -221,7 +221,7 @@ namespace nap
 	{
 		std::lock_guard<std::mutex> lock(mReceiverMutex);
 		mLatency = value;
-		for (auto& receiver : mReceivers)
+		for (auto& receiver : mListeners)
 			receiver->setLatency(value);
 	}
 

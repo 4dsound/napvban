@@ -101,8 +101,8 @@ namespace nap
 		ResourcePtr<VBANUDPServer> mServer = nullptr; ///< Property: 'Server' Pointer to the VBAN UDP server receiving the packets
 
 	protected:
-		Slot<const UDPPacket&> mPacketReceivedSlot = { this, &VBANPacketReceiver::packetReceived };
-		void packetReceived(const UDPPacket& packet);
+		Slot<const VBANUDPServer::Packet&> mPacketReceivedSlot = { this, &VBANPacketReceiver::packetReceived };
+		void packetReceived(const VBANUDPServer::Packet& packet);
 
 	private:
 		bool checkPacket(utility::ErrorState& errorState, nap::uint8 const* buffer, size_t size);
@@ -110,7 +110,7 @@ namespace nap
 
 	private:
 		std::mutex mReceiverMutex;
-		std::vector<IVBANStreamListener*> mReceivers;
+		std::vector<IVBANStreamListener*> mListeners;
 		std::vector<std::vector<float>> mBuffers; // Here as to not reallocate them for every received packet
 		int mLatency = 1;
 		std::atomic<int> mCorrectPacketCounter = { 0 };
