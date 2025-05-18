@@ -122,7 +122,7 @@ namespace nap
 		if (len > 0)
 		{
 			// nap::Logger::info("Packet size: %i, Available: %i", len, available);
-			assert(len <= VBAN_PROTOCOL_MAX_SIZE);
+			assert(len <= VBAN_DATA_MAX_SIZE);
 			mPacket.resize(len);
 			std::lock_guard<std::mutex> lock(mMutex);
 			// const UDPPacket packet(std::move(mBuffer));
