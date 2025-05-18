@@ -42,7 +42,7 @@ namespace nap
 
 	VBANUDPServer::VBANUDPServer()
 	{
-		mPacket.reserve(1000000);
+		mPacket.reserve(VBAN_DATA_MAX_SIZE);
 	}
 
 
@@ -94,15 +94,13 @@ namespace nap
 	void nap::VBANUDPServer::stop()
 	{
 		mRunning.store(false);
-		mThread->join();
 
 		asio::error_code asio_error_code;
 		mImpl->mSocket.close(asio_error_code);
-
 		if (asio_error_code)
-		{
 			nap::Logger::error(*this, asio_error_code.message());
-		}
+
+		mThread->join();
 
 		// explicitly delete socket
 		mImpl = nullptr;
@@ -111,23 +109,25 @@ namespace nap
 
 	void nap::VBANUDPServer::process()
 	{
-		auto available = mImpl->mSocket.available();
-		if (available < VBAN_DATA_MAX_SIZE)
-			return;
-
 		asio::error_code asio_error_code;
+
 		mPacket.resize(VBAN_DATA_MAX_SIZE);
 
-		uint len = mImpl->mSocket.receive(asio::buffer(mPacket));
-		if (len > 0)
-		{
-			// nap::Logger::info("Packet size: %i, Available: %i", len, available);
-			assert(len <= VBAN_DATA_MAX_SIZE);
-			mPacket.resize(len);
-			std::lock_guard<std::mutex> lock(mMutex);
-			// const UDPPacket packet(std::move(mBuffer));
 
-			packetReceived.trigger(mPacket);
+		try
+		{
+			uint len = mImpl->mSocket.receive(asio::buffer(mPacket));
+			if (len > 0)
+			{
+				assert(len <= VBAN_DATA_MAX_SIZE);
+				mPacket.resize(len);
+				std::lock_guard<std::mutex> lock(mMutex);
+				packetReceived.trigger(mPacket);
+			}
+		}
+		catch (std::exception &e)
+		{
+			// Catch this exception for when the thread is killed at shutdown
 		}
 
 		if (asio_error_code)
