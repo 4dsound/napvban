@@ -150,8 +150,6 @@ namespace nap
 	bool VBANPacketReceiver::checkPacket(utility::ErrorState& errorState, nap::uint8 const* buffer, size_t size)
 	{
 		struct VBanHeader const* const hdr = (struct VBanHeader*)(buffer);
-		enum VBanProtocol protocol = static_cast<VBanProtocol>(VBAN_PROTOCOL_UNDEFINED_4);
-		enum VBanCodec codec = static_cast<VBanCodec>(VBAN_BIT_RESOLUTION_MAX);
 
 		if (!errorState.check(buffer != 0, "buffer is null ptr"))
 			return false;
@@ -169,8 +167,8 @@ namespace nap
 			return false;
 
 		// check protocol and codec
-		protocol        = static_cast<VBanProtocol>(hdr->format_SR & VBAN_PROTOCOL_MASK);
-		codec           = static_cast<VBanCodec>(hdr->format_bit & VBAN_CODEC_MASK);
+		auto protocol = static_cast<VBanProtocol>(hdr->format_SR & VBAN_PROTOCOL_MASK);
+		auto codec = static_cast<VBanCodec>(hdr->format_bit & VBAN_CODEC_MASK);
 
 		if (protocol != VBAN_PROTOCOL_AUDIO)
 		{
