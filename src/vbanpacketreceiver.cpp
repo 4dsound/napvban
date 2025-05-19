@@ -72,8 +72,13 @@ namespace nap
 				// get packet meta-data
 				int const nb_samples = hdr->format_nbs + 1;
 				int const nb_channels = hdr->format_nbc + 1;
-				size_t sample_size = VBanBitResolutionSize[static_cast<const VBanBitResolution>(hdr->format_bit &
-					VBAN_BIT_RESOLUTION_MASK)];
+				auto const format = hdr->format_bit;
+				int sample_size;
+				if (format == VBAN_BITFMT_32_INT)
+					sample_size = 4;
+				else
+					sample_size = 2;
+
 				size_t payload_size = nb_samples * sample_size * nb_channels;
 
 				// Resize buffers to push to players
@@ -83,16 +88,40 @@ namespace nap
 					buffer.resize(float_buffer_size);
 
 				// convert WAVE PCM multiplexed signal into floating point (SampleValue) buffers for each channel
-				for (size_t i = 0; i < float_buffer_size; i++)
+				int pos = VBAN_HEADER_SIZE;
+				if (sample_size == 4)
 				{
-					for (int c = 0; c < nb_channels; c++)
+					for (int i = 0; i < float_buffer_size; i++)
 					{
-						size_t pos = (i * nb_channels * 2) + (c * 2) + VBAN_HEADER_SIZE;
-						char byte_1 = packet.data()[pos];
-						char byte_2 = packet.data()[pos + 1];
-						short original_value = ((static_cast<short>(byte_2)) << 8) | (0x00ff & byte_1);
+						for (int channel = 0; channel < nb_channels; channel++)
+						{
+							unsigned char byte_1 = packet.data()[pos];
+							unsigned char byte_2 = packet.data()[pos + 1];
+							unsigned char byte_3 = packet.data()[pos + 2];
+							unsigned char byte_4 = packet.data()[pos + 3];
+							int32_t original_value =
+								static_cast<int32_t>(byte_4) << 24 |
+								static_cast<int32_t>(byte_3) << 16 |
+								static_cast<int32_t>(byte_2) << 8 |
+								(0x000000ff & byte_1);
 
-						mBuffers[c][i] = ((float) original_value) / (float) 32768;
+							mBuffers[channel][i] = (float) original_value / (float) std::numeric_limits<int32_t>::max();
+							pos += 4;
+						}
+					}
+				}
+				else {
+					for (int i = 0; i < float_buffer_size; i++)
+					{
+						for (int channel = 0; channel < nb_channels; channel++)
+						{
+							unsigned char byte_1 = packet.data()[pos];
+							unsigned char byte_2 = packet.data()[pos + 1];
+							int16_t original_value = static_cast<int16_t>(byte_2) << 8 | (0x00ff & byte_1);
+
+							mBuffers[channel][i] = (float) original_value / (float) std::numeric_limits<int16_t>::max();
+							pos += 2;
+						}
 					}
 				}
 
@@ -133,7 +162,7 @@ namespace nap
 		if (!errorState.check(hdr->vban == *(int32_t*)("VBAN"), "invalid vban magic fourc"))
 			return false;
 
-		if (!errorState.check(hdr->format_bit == VBAN_BITFMT_16_INT, "reserved format bit invalid value, only 16 bit PCM supported at this time"))
+		if (!errorState.check(hdr->format_bit == VBAN_BITFMT_16_INT || hdr->format_bit == VBAN_BITFMT_32_INT, "reserved format bit invalid value, only 16 or 32 bit PCM supported at this time"))
 			return false;
 
 		if (!errorState.check((hdr->format_nbc + 1) > 0, "channel count cannot be 0 or smaller"))
