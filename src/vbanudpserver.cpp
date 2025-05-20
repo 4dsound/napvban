@@ -42,7 +42,7 @@ namespace nap
 
 	VBANUDPServer::VBANUDPServer()
 	{
-		mPacket.reserve(VBAN_DATA_MAX_SIZE);
+		mPacket.reserve(VBAN_PROTOCOL_MAX_SIZE);
 	}
 
 
@@ -111,7 +111,7 @@ namespace nap
 	{
 		asio::error_code asio_error_code;
 
-		mPacket.resize(VBAN_DATA_MAX_SIZE);
+		mPacket.resize(VBAN_PROTOCOL_MAX_SIZE);
 
 
 		try
@@ -119,7 +119,7 @@ namespace nap
 			uint len = mImpl->mSocket.receive(asio::buffer(mPacket));
 			if (len > 0)
 			{
-				assert(len <= VBAN_DATA_MAX_SIZE);
+				assert(len <= VBAN_PROTOCOL_MAX_SIZE);
 				mPacket.resize(len);
 				std::lock_guard<std::mutex> lock(mMutex);
 				packetReceived.trigger(mPacket);
