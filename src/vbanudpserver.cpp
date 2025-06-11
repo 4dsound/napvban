@@ -17,9 +17,11 @@
 #include <thread>
 #include <vban/vban.h>
 
+#include "utility/threading.h"
+
 RTTI_BEGIN_CLASS(nap::VBANUDPServer)
-	RTTI_PROPERTY("Port",			        &nap::VBANUDPServer::mPort,			                nap::rtti::EPropertyMetaData::Default)
-	RTTI_PROPERTY("IP Address",		        &nap::VBANUDPServer::mIPAddress,	                nap::rtti::EPropertyMetaData::Default)
+	RTTI_PROPERTY("Port", &nap::VBANUDPServer::mPort, nap::rtti::EPropertyMetaData::Default)
+	RTTI_PROPERTY("IP Address", &nap::VBANUDPServer::mIPAddress, nap::rtti::EPropertyMetaData::Default)
 	RTTI_PROPERTY("ReceiveBufferSize", &nap::VBANUDPServer::mReceiveBufferSize, nap::rtti::EPropertyMetaData::Default)
 RTTI_END_CLASS
 
@@ -86,6 +88,19 @@ namespace nap
 			while (mRunning.load())
 				process();
 		});
+
+		// Set thread priority to realtime priority to prevent the thread from being preempted by the OS scheduler.
+#ifdef _WIN32
+		auto result = SetThreadPriority(mThread->native_handle(), THREAD_PRIORITY_TIME_CRITICAL);
+		// If this assertion fails the thread failed to acquire realtime priority
+		assert(result != 0);
+#else
+		sched_param schedParams;
+		schedParams.sched_priority = 99;
+		auto result = pthread_setschedparam(mThread->native_handle(), SCHED_FIFO, &schedParams);
+		// If this assertion fails the thread failed to acquire realtime priority
+		assert(result == 0);
+#endif
 
 		return true;
 	}
