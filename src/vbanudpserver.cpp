@@ -134,6 +134,7 @@ namespace nap
 		{
 			try
 			{
+				mPacket.resize(VBAN_PROTOCOL_MAX_SIZE);
 				uint len = mImpl->mSocket.receive(asio::buffer(mPacket));
 				if (len > 0)
 				{
