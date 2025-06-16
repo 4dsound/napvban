@@ -85,8 +85,7 @@ namespace nap
 
 		mRunning.store(true);
 		mThread = std::make_unique<std::thread>([&](){
-			while (mRunning.load())
-				process();
+			threadFunction();
 		});
 
 		// Set thread priority to realtime priority to prevent the thread from being preempted by the OS scheduler.
@@ -121,32 +120,37 @@ namespace nap
 		mImpl = nullptr;
 	}
 
+	void VBANUDPServer::threadFunction()
+	{
+		workLoop();
+	}
 
-	void nap::VBANUDPServer::process()
+
+	void nap::VBANUDPServer::workLoop()
 	{
 		asio::error_code asio_error_code;
 
-		mPacket.resize(VBAN_PROTOCOL_MAX_SIZE);
-
-
-		try
+		while (mRunning.load())
 		{
-			uint len = mImpl->mSocket.receive(asio::buffer(mPacket));
-			if (len > 0)
+			try
 			{
-				assert(len <= VBAN_PROTOCOL_MAX_SIZE);
-				mPacket.resize(len);
-				std::lock_guard<std::mutex> lock(mMutex);
-				packetReceived.trigger(mPacket);
+				uint len = mImpl->mSocket.receive(asio::buffer(mPacket));
+				if (len > 0)
+				{
+					assert(len <= VBAN_PROTOCOL_MAX_SIZE);
+					mPacket.resize(len);
+					std::lock_guard<std::mutex> lock(mMutex);
+					packetReceived.trigger(mPacket);
+				}
 			}
-		}
-		catch (std::exception &e)
-		{
-			// Catch this exception for when the thread is killed at shutdown
-		}
+			catch (std::exception &e)
+			{
+				// Catch this exception for when the thread is killed at shutdown
+			}
 
-		if (asio_error_code)
-			nap::Logger::error(*this, asio_error_code.message());
+			if (asio_error_code)
+				nap::Logger::error(*this, asio_error_code.message());
+		}
 	}
 
 

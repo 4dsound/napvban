@@ -23,7 +23,7 @@ namespace nap
 	/**
 	 * VBAN specific variation on the UDPServer.
 	 */
-	class NAPAPI VBANUDPServer final : public Device
+	class NAPAPI VBANUDPServer : public Device
 	{
 		RTTI_ENABLE(Device)
 
@@ -54,14 +54,21 @@ namespace nap
 		bool start(utility::ErrorState& errorState) override final;
 		void stop() override final;
 
+		/**
+		 * By default just calls the workLoop() function.
+		 * Override this function to add specific behaviour before and/or after the workloop.
+		 */
+		virtual void threadFunction();
+
 	protected:
 		/**
 		 * packet received signal will be dispatched on the thread this UDPServer is registered to, see UDPThread
 		 */
 		Signal<const Packet&> packetReceived;
 
+		void workLoop();
+
 	private:
-		void process();
 		bool handleAsioError(const std::error_code& errorCode, utility::ErrorState& errorState, bool& success);
 
 		// Server specific ASIO implementation
