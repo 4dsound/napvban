@@ -95,9 +95,17 @@ namespace nap
 		assert(result != 0);
 #else
 		sched_param schedParams;
-		schedParams.sched_priority = 99;
+		schedParams.sched_priority = sched_get_priority_max(SCHED_FIFO);
 		auto result = pthread_setschedparam(mThread->native_handle(), SCHED_FIFO, &schedParams);
 		// If this assertion fails the thread failed to acquire realtime priority
+		if (result == ESRCH)
+			Logger::error("No thread with specified id");
+		else if (result == EINVAL)
+			Logger::error("Thread policy FIFO not recognized");
+		else if (result == EPERM)
+			Logger::error("No privilige to set thread policy");
+		else if (result == ENOTSUP)
+			Logger::error("Priority not supported");
 		assert(result == 0);
 #endif
 
