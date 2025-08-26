@@ -51,8 +51,8 @@ namespace nap
 		int mReceiveBufferSize = 1000000;				///< Property: 'ReceiveBufferSize'
 
 		// Inherited from Device
-		bool start(utility::ErrorState& errorState) override final;
-		void stop() override final;
+		bool start(utility::ErrorState& errorState) override;
+		void stop() override;
 
 		/**
 		 * By default just calls the workLoop() function.
