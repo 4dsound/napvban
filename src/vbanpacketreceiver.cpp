@@ -72,6 +72,7 @@ namespace nap
 				// get packet meta-data
 				int const nb_samples = hdr->format_nbs + 1;
 				int const nb_channels = hdr->format_nbc + 1;
+				uint32 const packetCounter = hdr->nuFrame;
 				auto const format = hdr->format_bit;
 				int sample_size;
 				if (format == VBAN_BITFMT_32_INT)
@@ -125,7 +126,7 @@ namespace nap
 					}
 				}
 
-				if (listener->pushBuffers(mBuffers, errorState))
+				if (listener->pushBuffers(mBuffers, packetCounter, errorState))
 				{
 					// We have handled a packet correctly
 					if (mCorrectPacketCounter < mListeners.size())

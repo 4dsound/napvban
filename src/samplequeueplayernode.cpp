@@ -53,7 +53,7 @@ namespace nap
 
 			// Update spare latency
 			auto newSpareLatencyInBuffers = mNewSpareLatencyInBuffers.load();
-			if (newSpareLatencyInBuffers != mSpareLatencyInBuffers)
+			if (newSpareLatencyInBuffers != mSpareLatencyInBuffers || mClearSpareBuffer.check())
 			{
 				mSpareLatencyInBuffers = newSpareLatencyInBuffers;
 				while (mQueue.try_dequeue_bulk(mSamples.data(), mSamples.size()) > 0);

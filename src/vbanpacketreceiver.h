@@ -27,10 +27,11 @@ namespace nap
 		/**
 		 * Has to be overridden to handle incoming audio data for the stream
 		 * @param buffers multichannel audio buffer containing audio for each channel in the stream
+		 * @param packetCounter the packet counter of the VBAN packet that contained the buffers
 		 * @param errorState contains possible errors while handling audio buffers, like channel mismatches.
 		 * @return True on success
 		 */
-		virtual bool pushBuffers(const std::vector<std::vector<float>>& buffers, utility::ErrorState& errorState) = 0;
+		virtual bool pushBuffers(const std::vector<std::vector<float>>& buffers, uint32 packetCounter, utility::ErrorState& errorState) = 0;
 
 		/**
 		 * Sets additional latency used to compensate for packets arriving late.

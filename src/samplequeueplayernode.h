@@ -9,6 +9,7 @@
 
 // Nap includes
 #include <audio/utility/safeptr.h>
+#include <audio/utility/dirtyflag.h>
 #include <utility/threading.h>
 
 // Audio includes
@@ -56,6 +57,11 @@ namespace nap
 			void setLatency(int numberOfBuffers);
 
 			/**
+			 * Tells the process to clear the current spare buffer.
+			 */
+			void clearSpareBuffer() { mClearSpareBuffer.set(); };
+
+			/**
 			 * @param value True if logging is enabled.
 			 */
 			void setVerbose(bool value) { mVerbose = value; }
@@ -75,6 +81,7 @@ namespace nap
 			int mSpareLatencyInBuffers = 0; // Spare latency as a multiple of the buffersize.
 			std::atomic<int> mNewSpareLatencyInBuffers = 0; // Atomic to store values for mSpareLatencyInBuffers as a multiple of the buffersize.
 			bool mSavingSpare = true;
+			DirtyFlag mClearSpareBuffer;
 		};
 
 	}
