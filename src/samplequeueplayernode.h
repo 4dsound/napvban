@@ -70,6 +70,7 @@ namespace nap
 			// Inherited from Node
 			void process() override;
 			void bufferSizeChanged(int bufferSize) override;
+			void sampleRateChanged(float sampleRate) override;
 			void setSpareLatency(int spareLatency); // Sets the spare latency in samples and clears the queue;
 
 			moodycamel::ConcurrentQueue<float> mQueue;  // New samples are queued here from a different thread.

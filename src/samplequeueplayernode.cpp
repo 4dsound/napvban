@@ -94,12 +94,14 @@ namespace nap
 
 		void SampleQueuePlayerNode::bufferSizeChanged(int bufferSize)
 		{
-			mSamples.resize(getBufferSize());
-			while (mQueue.try_dequeue_bulk(mSamples.data(), mSamples.size()) > 0);
-			mSpareLatency = mSpareLatencyInBuffers * getBufferSize();
-			mSavingSpare = true;
+			mClearSpareBuffer.set();
 		}
 
+
+		void SampleQueuePlayerNode::sampleRateChanged(float sampleRate)
+		{
+			mClearSpareBuffer.set();
+		}
 
 	}
 }

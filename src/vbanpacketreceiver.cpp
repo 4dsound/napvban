@@ -92,6 +92,7 @@ namespace nap
 				int pos = VBAN_HEADER_SIZE;
 				if (sample_size == 4)
 				{
+					// 32 bit
 					for (int i = 0; i < float_buffer_size; i++)
 					{
 						for (int channel = 0; channel < nb_channels; channel++)
@@ -112,6 +113,7 @@ namespace nap
 					}
 				}
 				else {
+					// 16 bit
 					for (int i = 0; i < float_buffer_size; i++)
 					{
 						for (int channel = 0; channel < nb_channels; channel++)
@@ -126,7 +128,24 @@ namespace nap
 					}
 				}
 
-				if (listener->pushBuffers(mBuffers, packetCounter, errorState))
+				// Check if this is a new stream or if the packets have been interrupted
+				auto packetCounterIt = mPacketCounters.find(listener);
+				if (packetCounterIt == mPacketCounters.end())
+				{
+					Logger::info("New stream: %s", stream_name.c_str());
+					clearSpareBuffers();
+				}
+				else
+				{
+					if (packetCounterIt->second != packetCounter - 1)
+					{
+						Logger::info("Stream interrupted: %s", stream_name.c_str());
+						clearSpareBuffers();
+					}
+				}
+				mPacketCounters[listener] = packetCounter;
+
+				if (listener->pushBuffers(mBuffers, errorState))
 				{
 					// We have handled a packet correctly
 					if (mCorrectPacketCounter < mListeners.size())
@@ -251,6 +270,13 @@ namespace nap
 		mLatency = value;
 		for (auto& receiver : mListeners)
 			receiver->setLatency(value);
+	}
+
+
+	void VBANPacketReceiver::clearSpareBuffers()
+	{
+		for (auto& receiver : mListeners)
+			receiver->clearSpareBuffers();
 	}
 
 

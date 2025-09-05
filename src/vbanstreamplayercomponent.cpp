@@ -70,20 +70,10 @@ namespace nap
 		}
 
 
-		bool VBANStreamPlayerComponentInstance::pushBuffers(const std::vector<std::vector<float>>& buffers, uint32 packetCounter, utility::ErrorState& errorState)
+		bool VBANStreamPlayerComponentInstance::pushBuffers(const std::vector<std::vector<float>>& buffers, utility::ErrorState& errorState)
 		{
 			if (buffers.size() >= getChannelCount())
 			{
-				// Check if the packet numbering has been interrupted.
-				// If so, reset the spare buffer and start with a clean slate.
-				mPacketCounter++;
-				if (mPacketCounter != packetCounter)
-				{
-					mPacketCounter = packetCounter;
-					for (int i = 0; i < mBufferPlayers.size(); i++)
-						mBufferPlayers[i]->clearSpareBuffer();
-				}
-
 				for(int i = 0; i < mBufferPlayers.size(); i++)
 					mBufferPlayers[i]->queueSamples(&buffers[i][0], buffers[i].size());
 				return true;
@@ -99,6 +89,13 @@ namespace nap
 		{
 			for (auto& node : mBufferPlayers)
 				node->setLatency(latency);
+		}
+
+
+		void VBANStreamPlayerComponentInstance::clearSpareBuffers()
+		{
+			for (auto& node : mBufferPlayers)
+				node->clearSpareBuffer();
 		}
 
 	}

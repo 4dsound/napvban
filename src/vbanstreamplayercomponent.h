@@ -84,8 +84,9 @@ namespace nap
 			OutputPin* getOutputForChannel(int channel) override { assert(channel < mBufferPlayers.size()); return &mBufferPlayers[channel]->audioOutput; }
 
 			// Inherited from IVBANStreamListener
-			bool pushBuffers(const std::vector<std::vector<float>>& buffers, uint32 packetCounter, utility::ErrorState& errorState) override;
+			bool pushBuffers(const std::vector<std::vector<float>>& buffers, utility::ErrorState& errorState) override;
 			void setLatency(int latencyInBuffers) override;
+			void clearSpareBuffers() override;
 			const std::string& getStreamName() override { return mStreamName; }
 			int getSampleRate() const override{ return mSampleRate; }
 
@@ -105,7 +106,6 @@ namespace nap
 			AudioService* mAudioService = nullptr; // audio server
 			VBANPacketReceiver* mVbanReceiver = nullptr; // the vban packet receiver
 			int mSampleRate = 0; // sample rate
-			uint32 mPacketCounter = 0; // packet counter
 		};
 	}
 }

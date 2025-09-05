@@ -9,7 +9,6 @@
 #include <udpserver.h>
 #include <udppacket.h>
 #include <utility/threading.h>
-#include <audio/service/audioservice.h>
 
 #include "vbanudpserver.h"
 
@@ -27,11 +26,10 @@ namespace nap
 		/**
 		 * Has to be overridden to handle incoming audio data for the stream
 		 * @param buffers multichannel audio buffer containing audio for each channel in the stream
-		 * @param packetCounter the packet counter of the VBAN packet that contained the buffers
 		 * @param errorState contains possible errors while handling audio buffers, like channel mismatches.
 		 * @return True on success
 		 */
-		virtual bool pushBuffers(const std::vector<std::vector<float>>& buffers, uint32 packetCounter, utility::ErrorState& errorState) = 0;
+		virtual bool pushBuffers(const std::vector<std::vector<float>>& buffers, utility::ErrorState& errorState) = 0;
 
 		/**
 		 * Sets additional latency used to compensate for packets arriving late.
@@ -39,6 +37,11 @@ namespace nap
 		 * @param value Latency specified in number of audio buffers of the current audio system. (usually NodeManager::getBufferSize())
 		 */
 		virtual void setLatency(int value) = 0;
+
+		/**
+		 * CLears the spare buffers in the SampleQueuePlayerNodes.
+		 */
+		virtual void clearSpareBuffers() = 0;
 
 		/**
 		 * @return Has to return the name of the VBAN audio stream that this receiver will handle.
@@ -84,6 +87,11 @@ namespace nap
 		void setLatency(int value);
 
 		/**
+		 * Clears the spare buffers in the SampleQueuePlayerNodes that are used to correct for packet drifting.
+		 */
+		void clearSpareBuffers();
+
+		/**
 		 * @return Return additional latency as a multiple of the current buffer size.
 		 */
 		int getLatency() const { return mLatency; }
@@ -112,6 +120,7 @@ namespace nap
 	private:
 		std::mutex mReceiverMutex;
 		std::vector<IVBANStreamListener*> mListeners;
+		std::map<IVBANStreamListener*, uint32> mPacketCounters; // Packet counter for each stream
 		std::vector<std::vector<float>> mBuffers; // Here as to not reallocate them for every received packet
 		int mLatency = 1;
 		std::atomic<int> mCorrectPacketCounter = { 0 };
