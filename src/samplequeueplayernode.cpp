@@ -55,6 +55,7 @@ namespace nap
 			auto newSpareLatencyInBuffers = mNewSpareLatencyInBuffers.load();
 			if (newSpareLatencyInBuffers != mSpareLatencyInBuffers || mClearSpareBuffer.check())
 			{
+				Logger::debug("SampleQueuePlayerNode: Spare latency changed or spare buffer cleared");
 				mSpareLatencyInBuffers = newSpareLatencyInBuffers;
 				while (mQueue.try_dequeue_bulk(mSamples.data(), mSamples.size()) > 0);
 				mSpareLatency = mSpareLatencyInBuffers * getBufferSize();
@@ -86,6 +87,7 @@ namespace nap
 			}
 			else {
 				// not enough samples in queue, fill with silence
+				Logger::debug("SampleQueuePlayerNode: Not enough samples in queue");
 				mSavingSpare = true;
 				std::fill(outputBuffer.begin(), outputBuffer.end(), 0.0f);
 			}
