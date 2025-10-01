@@ -105,6 +105,11 @@ namespace nap
 		 * @message When hasErrors() returns true, this is set to the current error message.
 		 */
 		void getErrorMessage(std::string& message);
+		
+		/**
+		 * @return The number of listeners.
+		 */
+		int getStreamListenerCount() { return mListeners.size(); }
 
 	public:
 		ResourcePtr<VBANUDPServer> mServer = nullptr; ///< Property: 'Server' Pointer to the VBAN UDP server receiving the packets
