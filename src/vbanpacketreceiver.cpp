@@ -301,4 +301,11 @@ namespace nap
 		}
 	}
 
+	
+	int VBANPacketReceiver::getStreamListenerCount()
+	{
+		std::lock_guard<std::mutex> lock(mReceiverMutex);
+		return mListeners.size();
+	}
+
 }

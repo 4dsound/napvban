@@ -109,7 +109,7 @@ namespace nap
 		/**
 		 * @return The number of listeners.
 		 */
-		int getStreamListenerCount() { return mListeners.size(); }
+		int getStreamListenerCount();
 
 	public:
 		ResourcePtr<VBANUDPServer> mServer = nullptr; ///< Property: 'Server' Pointer to the VBAN UDP server receiving the packets
