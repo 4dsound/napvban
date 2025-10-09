@@ -73,6 +73,7 @@ namespace nap
 				int const nb_samples = hdr->format_nbs + 1;
 				int const nb_channels = hdr->format_nbc + 1;
 				uint32 const packetCounter = hdr->nuFrame;
+				// Logger::debug("%s %i %i %i", stream_name.c_str(), nb_samples, nb_channels, packetCounter);
 				auto const format = hdr->format_bit;
 				int sample_size;
 				if (format == VBAN_BITFMT_32_INT)
@@ -140,7 +141,8 @@ namespace nap
 					if (packetCounterIt->second != packetCounter - 1)
 					{
 						Logger::info("Stream interrupted: %s", stream_name.c_str());
-						clearSpareBuffers();
+						listener->clearSpareBuffers();
+						// clearSpareBuffers();
 					}
 				}
 				mPacketCounters[listener] = packetCounter;
