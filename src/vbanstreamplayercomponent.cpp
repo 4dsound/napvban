@@ -38,13 +38,10 @@ namespace nap
 
 		bool VBANStreamPlayerComponentInstance::init(utility::ErrorState& errorState)
 		{
-
-
             // acquire resources
 			mResource = getComponent<VBANStreamPlayerComponent>();
 			mVbanReceiver = mResource->mVBANPacketReceiver.get();
 			mStreamName = mResource->mStreamName;
-			// TODO: MAKE NICER
 
 			// acquire audio service
 			mAudioService = getEntityInstance()->getCore()->getService<AudioService>();
@@ -56,12 +53,9 @@ namespace nap
             mSampleRate = static_cast<int>(mNodeManager->getSampleRate());
 
             // create buffer player for each channel
-			for (auto channel = 0; channel < mChannelRouting.size(); ++channel)
-			{
-				auto bufferPlayer = mNodeManager->makeSafe<SampleQueuePlayerNode>(*mNodeManager);
-                bufferPlayer->setMaxQueueSize(mResource->mMaxBufferSize);
-				mBufferPlayers.emplace_back(std::move(bufferPlayer));
-			}
+			auto mBufferPlayer = mNodeManager->makeSafe<SampleQueuePlayerNode>(*mNodeManager);
+			mBufferPlayer->setChannelCount(mChannelRouting.size());
+			mBufferPlayer->setMaxQueueSize(mResource->mMaxBufferSize);
 
             // register to the packet receiver
             mVbanReceiver->registerStreamListener(this);
@@ -70,16 +64,15 @@ namespace nap
 		}
 
 
-		bool VBANStreamPlayerComponentInstance::pushBuffers(const std::vector<std::vector<float>>& buffers, utility::ErrorState& errorState)
+		bool VBANStreamPlayerComponentInstance::pushBuffers(const MultiSampleBuffer& buffers, utility::ErrorState& errorState)
 		{
-			if (buffers.size() >= getChannelCount())
+			if (buffers.getChannelCount() == getChannelCount())
 			{
-				for(int i = 0; i < mBufferPlayers.size(); i++)
-					mBufferPlayers[i]->queueSamples(&buffers[i][0], buffers[i].size());
+				mBufferPlayer->queueSamples(buffers);
 				return true;
 			}
 			else {
-				errorState.fail("Received %i buffers but expected %i", buffers.size(), getChannelCount());
+				errorState.fail("Received %i buffers but expected %i", buffers.getChannelCount(), getChannelCount());
 				return false;
 			}
 		}
@@ -87,15 +80,13 @@ namespace nap
 
 		void VBANStreamPlayerComponentInstance::setLatency(int latency)
 		{
-			for (auto& node : mBufferPlayers)
-				node->setLatency(latency);
+			mBufferPlayer->setLatency(latency);
 		}
 
 
 		void VBANStreamPlayerComponentInstance::clearSpareBuffers()
 		{
-			for (auto& node : mBufferPlayers)
-				node->clearSpareBuffer();
+			mBufferPlayer->clearSpareBuffer();
 		}
 
 	}

@@ -85,9 +85,7 @@ namespace nap
 
 				// Resize buffers to push to players
 				int float_buffer_size = int(payload_size / sample_size) / nb_channels;
-				mBuffers.resize(nb_channels);
-				for (auto& buffer: mBuffers)
-					buffer.resize(float_buffer_size);
+				mBuffers.resize(nb_channels, float_buffer_size);
 
 				// convert WAVE PCM multiplexed signal into floating point (SampleValue) buffers for each channel
 				int pos = VBAN_HEADER_SIZE;

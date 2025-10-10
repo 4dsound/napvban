@@ -36,31 +36,29 @@ namespace nap
 		}
 
 
-		void SampleQueuePlayerNode::queueSamples(const std::vector<std::vector<float>> &samples)
+		void SampleQueuePlayerNode::queueSamples(const MultiSampleBuffer& samples)
 		{
-			int numSamples = samples[0].size();
+			assert(samples.getChannelCount() == getChannelCount());
+			int numSamples = samples.getSize();
 
-			// check if queue size is exceeded, if so throw a warning, if not queue the samples
-			if (mQueue.size_approx() <= (mMaxQueueSize + mSpareLatency) * mOutputPins.size())
+			// Check if queue size is exceeded. If so, log a warning, if not queue the samples
+			if (mQueue.size_approx() <= (mMaxQueueSize * getChannelCount()))
 			{
 				// Enqueue interleaved
 				for (auto i = 0; i < numSamples; i++)
-					for (auto channel = 0; channel < samples.size(); channel++)
+					for (auto channel = 0; channel < samples.getChannelCount(); channel++)
 						mQueue.enqueue(samples[channel][i]);
-				// if (!mQueue.enqueue_bulk(samples, numSamples))
-				// {
-				// 	nap::Logger::error("%s: Failed to allocate memory for queue buffer",  std::string(get_type().get_name()).c_str());
-				// }
 			}
 			else {
-				if(mVerbose)
-					nap::Logger::warn("%s: Dropping samples because buffer is getting to big", std::string(get_type().get_name()).c_str());
+				nap::Logger::debug("%s: Dropping samples because buffer is getting to big", std::string(get_type().get_name()).c_str());
+				clearSpareBuffer();
 			}
 		}
 
 
 		void SampleQueuePlayerNode::setLatency(int numberOfBuffers)
 		{
+			clearQueue(); // Clear the sample queue immediately
 			mNewSpareLatencyInBuffers.store(numberOfBuffers);
 		}
 
@@ -78,7 +76,6 @@ namespace nap
 			auto newSpareLatencyInBuffers = mNewSpareLatencyInBuffers.load();
 			if (newSpareLatencyInBuffers != mSpareLatencyInBuffers || mClearSpareBuffer.check())
 			{
-				Logger::debug("SampleQueuePlayerNode: Spare latency changed or spare buffer cleared");
 				mSpareLatencyInBuffers = newSpareLatencyInBuffers;
 				mSpareLatency = mSpareLatencyInBuffers * getBufferSize();
 				mSavingSpare = true;
@@ -91,7 +88,7 @@ namespace nap
 
 			if (mSavingSpare)
 			{
-				if (available_samples < (getBufferSize() + mSpareLatency) * mOutputPins.size())
+				if (available_samples < (getBufferSize() + mSpareLatency) * getChannelCount())
 				{
 					fillOutputBuffers(0.f);
 					return;
@@ -124,7 +121,7 @@ namespace nap
 
 		void SampleQueuePlayerNode::bufferSizeChanged(int bufferSize)
 		{
-			mSamples.resize(mOutputPins.size() * getBufferSize(), 0.f);
+			mSamples.resize(getChannelCount() * getBufferSize(), 0.f);
 			clearQueue();
 			mClearSpareBuffer.set();
 		}
@@ -132,6 +129,7 @@ namespace nap
 
 		void SampleQueuePlayerNode::sampleRateChanged(float sampleRate)
 		{
+			clearQueue();
 			mClearSpareBuffer.set();
 		}
 

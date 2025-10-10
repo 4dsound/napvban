@@ -4,7 +4,7 @@
 
 #pragma once
 
-// Internal includes
+#include <audio/utility/audiotypes.h>
 #include <nap/resource.h>
 #include <udpserver.h>
 #include <udppacket.h>
@@ -29,7 +29,7 @@ namespace nap
 		 * @param errorState contains possible errors while handling audio buffers, like channel mismatches.
 		 * @return True on success
 		 */
-		virtual bool pushBuffers(const std::vector<std::vector<float>>& buffers, utility::ErrorState& errorState) = 0;
+		virtual bool pushBuffers(const audio::MultiSampleBuffer& buffers, utility::ErrorState& errorState) = 0;
 
 		/**
 		 * Sets additional latency used to compensate for packets arriving late.
@@ -121,7 +121,7 @@ namespace nap
 		std::mutex mReceiverMutex;
 		std::vector<IVBANStreamListener*> mListeners;
 		std::map<IVBANStreamListener*, uint32> mPacketCounters; // Packet counter for each stream
-		std::vector<std::vector<float>> mBuffers; // Here as to not reallocate them for every received packet
+		audio::MultiSampleBuffer mBuffers; // Here as to not reallocate them for every received packet
 		int mLatency = 1;
 		std::atomic<int> mCorrectPacketCounter = { 0 };
 		std::atomic<int> mReceiverCount = { 0 };

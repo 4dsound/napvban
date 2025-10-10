@@ -80,11 +80,11 @@ namespace nap
 			void onDestroy() override;
 
 			// Inherited from AudioComponentBaseInstance
-			int getChannelCount() const override { return mBufferPlayers.size(); }
-			OutputPin* getOutputForChannel(int channel) override { assert(channel < mBufferPlayers.size()); return &mBufferPlayers[channel]->audioOutput; }
+			int getChannelCount() const override { return mBufferPlayer->getChannelCount(); }
+			OutputPin* getOutputForChannel(int channel) override { assert(channel < mBufferPlayer->getChannelCount()); return &mBufferPlayer->getOutputPin(channel); }
 
 			// Inherited from IVBANStreamListener
-			bool pushBuffers(const std::vector<std::vector<float>>& buffers, utility::ErrorState& errorState) override;
+			bool pushBuffers(const MultiSampleBuffer& buffers, utility::ErrorState& errorState) override;
 			void setLatency(int latencyInBuffers) override;
 			void clearSpareBuffers() override;
 			const std::string& getStreamName() override { return mStreamName; }
@@ -97,7 +97,7 @@ namespace nap
 			void setStreamName(const std::string& streamName){ mStreamName = streamName; }
 
 		private:
-			std::vector<SafeOwner<SampleQueuePlayerNode>> mBufferPlayers;
+			SafeOwner<SampleQueuePlayerNode> mBufferPlayer;
 			std::vector<int> mChannelRouting;
 			std::string mStreamName;
 

@@ -22,8 +22,8 @@ namespace nap
 	{
 
 		/**
-		 * Node that allows the queueing of samples from another thread before they are being send through the output pin.
-		 *
+		 * Node that allows the queueing of samples from another thread before they are being send through the output pins.
+		 * The node allows the enqueueoing of multichannel audio.
 		 */
 		class NAPAPI SampleQueuePlayerNode : public Node
 		{
@@ -32,15 +32,31 @@ namespace nap
 		public:
 			SampleQueuePlayerNode(NodeManager& manager);
 
+			/**
+			 * Set the number of audio channels the node enqueues and outputs.
+			 * Needs to be called before calling getOutputPin().
+			 * @param channelCount Number of channels
+			 */
 			void setChannelCount(int channelCount);
 
+			/**
+			 * @return Number of channels the node enqueues and outputs.
+			 */
+			int getChannelCount() const { return mOutputPins.size(); }
+
+			/**
+			 * Returns output pin for a certain channel.
+			 * setChannelCount() needs to be called first.
+			 * @param channel Requested output channel
+			 * @return OutputPin for specified channel.
+			 */
 			OutputPin& getOutputPin(int channel) { return *mOutputPins[channel]; }
 
 			/**
-			 * Queue any amount of samples from another thread to be played back through the outpu pin.
-			 * @param samples Pointer to floating point data of sample data
+			 * Queue any amount of samples from another thread to be played back through the output pin.
+			 * @param samples Multichannel buffer with samples. The number of channels in the buffer needs to equal the number of channels of the node.
 			 */
-			void queueSamples(const std::vector<std::vector<float>>& samples);
+			void queueSamples(const MultiSampleBuffer& samples);
 
 			/**
 			 * Sets the maximum size of the sample queue.
@@ -55,7 +71,7 @@ namespace nap
 			void setLatency(int numberOfBuffers);
 
 			/**
-			 * Tells the process to clear the current spare buffer.
+			 * Tells the process to clear all the enqueued samples.
 			 */
 			void clearSpareBuffer();;
 
@@ -77,15 +93,15 @@ namespace nap
 			std::vector<std::unique_ptr<OutputPin>> mOutputPins;
 
 			moodycamel::ConcurrentQueue<float> mQueue;  // New samples are queued here from a different thread.
-			std::vector<SampleValue> mSamples;
+			std::vector<SampleValue> mSamples; // Interleaved buffer used to read from the queue.
 			std::atomic<int> mMaxQueueSize = { 4096 }; // The amount of samples that the queue is allowed to have
 			std::atomic<bool> mVerbose = { false }; // Enable logging
 
 			int mSpareLatency = 0; // Spare latency used to compensate for irregular supply of samples.
 			int mSpareLatencyInBuffers = 0; // Spare latency as a multiple of the buffersize.
 			std::atomic<int> mNewSpareLatencyInBuffers = 0; // Atomic to store values for mSpareLatencyInBuffers as a multiple of the buffersize.
-			bool mSavingSpare = true;
-			DirtyFlag mClearSpareBuffer;
+			bool mSavingSpare = true; // True if the Node is current;y saving samples to build a spare buffer
+			DirtyFlag mClearSpareBuffer; // Flag set for the audio thread if the spare buffer has been cleared.
 		};
 
 	}
