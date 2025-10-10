@@ -52,7 +52,6 @@ namespace nap
 			// Properties
 			ResourcePtr<VBANPacketReceiver> mVBANPacketReceiver = nullptr; ///< Property: "VBANPacketReceiver" the packet receiver
 			std::vector<int> mChannelRouting = { }; ///< Property: "ChannelRouting" the channel routing, must be equal to excpected channels from stream
-			int mMaxBufferSize = 4096; ///< Property: "MaxBufferSize" the max buffer size in samples. Keep this as low as possible to ensure the lowest possible latency
 			std::string mStreamName; ///< Property: "StreamName" the VBAN stream to listen to
 		public:
 		};

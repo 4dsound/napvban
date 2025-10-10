@@ -42,7 +42,7 @@ namespace nap
 			int numSamples = samples.getSize();
 
 			// Check if queue size is exceeded. If so, log a warning, if not queue the samples
-			if (mQueue.size_approx() <= (mMaxQueueSize * getChannelCount()))
+			if (mQueue.size_approx() <= (mMaxQueueSizeInBuffers * getBufferSize() * getChannelCount()))
 			{
 				// Enqueue interleaved
 				for (auto i = 0; i < numSamples; i++)
@@ -50,7 +50,7 @@ namespace nap
 						mQueue.enqueue(samples[channel][i]);
 			}
 			else {
-				nap::Logger::debug("%s: Dropping samples because buffer is getting to big", std::string(get_type().get_name()).c_str());
+				nap::Logger::debug("%s: Dropping samples because buffer is getting too big", std::string(get_type().get_name()).c_str());
 				clearSpareBuffer();
 			}
 		}

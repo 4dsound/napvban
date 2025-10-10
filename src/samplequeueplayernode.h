@@ -60,9 +60,9 @@ namespace nap
 
 			/**
 			 * Sets the maximum size of the sample queue.
-			 * @param value New maximum queue size
+			 * @param value New maximum queue size as a multiple of the audio buffersize
 			 */
-			void setMaxQueueSize(int value) { mMaxQueueSize = value; }
+			void setMaxQueueSize(int value) { mMaxQueueSizeInBuffers = value; }
 
 			/**
 			 * Sets the latency that will be used to compensate for irregular supply of samples to the queue.
@@ -94,7 +94,7 @@ namespace nap
 
 			moodycamel::ConcurrentQueue<float> mQueue;  // New samples are queued here from a different thread.
 			std::vector<SampleValue> mSamples; // Interleaved buffer used to read from the queue.
-			std::atomic<int> mMaxQueueSize = { 4096 }; // The amount of samples that the queue is allowed to have
+			std::atomic<int> mMaxQueueSizeInBuffers = { 4 }; // The amount of samples that the queue is allowed to have as multiple of the bufefrsize
 			std::atomic<bool> mVerbose = { false }; // Enable logging
 
 			int mSpareLatency = 0; // Spare latency used to compensate for irregular supply of samples.

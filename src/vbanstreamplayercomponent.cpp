@@ -17,7 +17,6 @@
 RTTI_BEGIN_CLASS(nap::audio::VBANStreamPlayerComponent)
 		RTTI_PROPERTY("VBANPacketReceiver", &nap::audio::VBANStreamPlayerComponent::mVBANPacketReceiver, nap::rtti::EPropertyMetaData::Required)
 		RTTI_PROPERTY("ChannelRouting", &nap::audio::VBANStreamPlayerComponent::mChannelRouting, nap::rtti::EPropertyMetaData::Default)
-		RTTI_PROPERTY("MaxBufferSize", &nap::audio::VBANStreamPlayerComponent::mMaxBufferSize, nap::rtti::EPropertyMetaData::Default)
 		RTTI_PROPERTY("StreamName", &nap::audio::VBANStreamPlayerComponent::mStreamName, nap::rtti::EPropertyMetaData::Default)
 RTTI_END_CLASS
 
@@ -55,7 +54,6 @@ namespace nap
             // create buffer player for each channel
 			auto mBufferPlayer = mNodeManager->makeSafe<SampleQueuePlayerNode>(*mNodeManager);
 			mBufferPlayer->setChannelCount(mChannelRouting.size());
-			mBufferPlayer->setMaxQueueSize(mResource->mMaxBufferSize);
 
             // register to the packet receiver
             mVbanReceiver->registerStreamListener(this);
@@ -81,6 +79,7 @@ namespace nap
 		void VBANStreamPlayerComponentInstance::setLatency(int latency)
 		{
 			mBufferPlayer->setLatency(latency);
+			mBufferPlayer->setMaxQueueSize(latency * 2);
 		}
 
 
