@@ -4,7 +4,8 @@
     "DemoApp" : "vbandemo",
     "RequiredModules": [
         "napudp",
-        "napportaudio"
+        "napportaudio",
+        "spatialaudiobridge"
     ], 
     "WindowsDllSearchPaths": []
 }
