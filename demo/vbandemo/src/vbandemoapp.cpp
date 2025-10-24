@@ -88,9 +88,9 @@ namespace nap
         ImGui::SameLine();
         ImGui::TextColored(pallete.mHighlightColor3, "%s", vban_stream_player_component->mStreamName.c_str());
 
-        ImGui::Text("Allowed latency in samples:");
-        ImGui::SameLine();
-        ImGui::TextColored(pallete.mHighlightColor3, "%i", vban_stream_player_component->mMaxBufferSize);
+        // ImGui::Text("Allowed latency in samples:");
+        // ImGui::SameLine();
+        // ImGui::TextColored(pallete.mHighlightColor3, "%i", vban_stream_player_component->mMaxBufferSize);
 
         ImGui::Spacing();
         ImGui::Text("Received Audio (Channel 0)");

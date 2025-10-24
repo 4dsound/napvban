@@ -27,7 +27,7 @@ namespace nap
 
 		/**
 		 * The VBANStreamSenderComponent takes the input of an audio component and translates that into a VBAN stream
-		 * that will be send via the UDP Client
+		 * that will be sent via the UDP Client
 		 */
 		class NAPAPI VBANStreamSenderComponent : public AudioComponentBase
 		{
@@ -94,6 +94,7 @@ namespace nap
 		private:
 			ComponentInstancePtr<audio::AudioComponentBase> mInput	= {this, &VBANStreamSenderComponent::mInput};
 			audio::SafeOwner<audio::VBANSenderNode> mVBANSenderNode = nullptr;
+			audio::NodeManager* mNodeManager = nullptr;
 		};
 	}
 }

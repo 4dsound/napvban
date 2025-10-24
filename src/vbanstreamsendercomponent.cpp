@@ -30,6 +30,7 @@ namespace nap
 	void VBANStreamSenderComponentInstance::onDestroy()
 	{
 		mVBANSenderNode->setUDPClient(nullptr);
+		mNodeManager->unregisterRootProcess(mVBANSenderNode.get());
 	}
 
 
@@ -37,7 +38,7 @@ namespace nap
 	{
 		// acquire audio service and node manager
 		auto audioService = getEntityInstance()->getCore()->getService<AudioService>();
-		auto& nodeManager = audioService->getNodeManager();
+		mNodeManager = &audioService->getNodeManager();
 
 		// acquire resources
 		auto* resource = getComponent<VBANStreamSenderComponent>();
@@ -59,7 +60,7 @@ namespace nap
 		}
 
 		// Create the VBAN sender node
-		mVBANSenderNode = nodeManager.makeSafe<VBANSenderNode>(nodeManager);
+		mVBANSenderNode = mNodeManager->makeSafe<VBANSenderNode>(*mNodeManager);
 		mVBANSenderNode->setStreamName(resource->mStreamName);
 		mVBANSenderNode->setUDPClient(resource->mUdpClient.get());
 
@@ -71,6 +72,7 @@ namespace nap
 
 			mVBANSenderNode->inputs.connect(*mInput->getOutputForChannel(channelRouting[channel]));
 		}
+		mNodeManager->registerRootProcess(mVBANSenderNode.get());
 
 		return true;
 	}

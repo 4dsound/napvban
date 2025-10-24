@@ -10,15 +10,11 @@
 
 // Audio includes
 #include <audio/component/audiocomponentbase.h>
-#include <audio/resource/audiobufferresource.h>
-#include <audio/node/bufferplayernode.h>
-#include <audio/node/multiplynode.h>
 #include <audio/node/controlnode.h>
-#include <audio/node/filternode.h>
 
 // Vban includes
-#include "samplequeueplayernode.h"
-#include "vbanpacketreceiver.h"
+#include "vbancircularbuffer.h"
+#include "vbanreceiver.h"
 
 namespace nap
 {
@@ -29,9 +25,8 @@ namespace nap
 		class VBANStreamPlayerComponentInstance;
 
 		/**
-		 * VBANStreamPlayerComponent hooks up to a VBANPacketReceiver and translates incoming VBAN packets
-		 * to audio buffers handled by a bufferplayer for each channel.
-		 * The VBAN packets must be configured to have the same amount of channels as channels created in channel routing
+		 * VBANStreamPlayerComponent hooks up to a VBANReceiver and plays incoming VBAN packets.
+		 * The VBAN packets must be configured to have the same samplerate and amount of channels as channels created in channel routing
 		 */
 		class NAPAPI VBANStreamPlayerComponent : public AudioComponentBase
 		{
@@ -50,7 +45,7 @@ namespace nap
 			bool isStereo() const { return mChannelRouting.size() == 2; }
 
 			// Properties
-			ResourcePtr<VBANPacketReceiver> mVBANPacketReceiver = nullptr; ///< Property: "VBANPacketReceiver" the packet receiver
+			ResourcePtr<VBANReceiver> mVBANPacketReceiver = nullptr; ///< Property: "VBANPacketReceiver" the packet receiver
 			std::vector<int> mChannelRouting = { }; ///< Property: "ChannelRouting" the channel routing, must be equal to excpected channels from stream
 			std::string mStreamName; ///< Property: "StreamName" the VBAN stream to listen to
 		public:
@@ -61,7 +56,7 @@ namespace nap
 		 * VBANStreamPlayerComponentInstance
 		 * Instance of VBANStreamPlayerComponent. Implements IVBANStreamListener interface
 		 */
-		class NAPAPI VBANStreamPlayerComponentInstance : public AudioComponentBaseInstance, public IVBANStreamListener
+		class NAPAPI VBANStreamPlayerComponentInstance : public AudioComponentBaseInstance
 		{
 			RTTI_ENABLE(AudioComponentBaseInstance)
 
@@ -79,32 +74,25 @@ namespace nap
 			void onDestroy() override;
 
 			// Inherited from AudioComponentBaseInstance
-			int getChannelCount() const override { return mBufferPlayer->getChannelCount(); }
-			OutputPin* getOutputForChannel(int channel) override { assert(channel < mBufferPlayer->getChannelCount()); return &mBufferPlayer->getOutputPin(channel); }
-
-			// Inherited from IVBANStreamListener
-			bool pushBuffers(const MultiSampleBuffer& buffers, utility::ErrorState& errorState) override;
-			void setLatency(int latencyInBuffers) override;
-			void clearSpareBuffers() override;
-			const std::string& getStreamName() override { return mStreamName; }
-			int getSampleRate() const override{ return mSampleRate; }
+			int getChannelCount() const override { return mReader->getChannelCount(); }
+			OutputPin* getOutputForChannel(int channel) override { assert(channel < mReader->getChannelCount()); return &mReader->getOutputPin(channel); }
 
 			/**
 			 * Sets streamname this VBANStreamPlayer accepts
 			 * @param streamName this VBANStreamPlayer accepts
 			 */
 			void setStreamName(const std::string& streamName){ mStreamName = streamName; }
+			void setLatency(float value);
 
 		private:
-			SafeOwner<SampleQueuePlayerNode> mBufferPlayer;
+			SafeOwner<VBANCircularBufferReader> mReader;
 			std::vector<int> mChannelRouting;
 			std::string mStreamName;
 
-			VBANStreamPlayerComponent* mResource = nullptr; // The component's resource
+			// VBANStreamPlayerComponent* mResource = nullptr; // The component's resource
 			NodeManager* mNodeManager = nullptr; // The audio node manager this component's audio nodes are managed by
 			AudioService* mAudioService = nullptr; // audio server
-			VBANPacketReceiver* mVbanReceiver = nullptr; // the vban packet receiver
-			int mSampleRate = 0; // sample rate
+			SafePtr<VBANCircularBuffer> mCircularBuffer = nullptr; // the circular buffer used for receiving audio data
 		};
 	}
 }

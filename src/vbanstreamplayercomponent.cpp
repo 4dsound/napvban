@@ -31,62 +31,39 @@ namespace nap
 	{
 		void VBANStreamPlayerComponentInstance::onDestroy()
 		{
-            mVbanReceiver->removeStreamListener(this);
+			mCircularBuffer->removeStream(mStreamName);
 		}
 
 
 		bool VBANStreamPlayerComponentInstance::init(utility::ErrorState& errorState)
 		{
             // acquire resources
-			mResource = getComponent<VBANStreamPlayerComponent>();
-			mVbanReceiver = mResource->mVBANPacketReceiver.get();
-			mStreamName = mResource->mStreamName;
+			auto resource = getComponent<VBANStreamPlayerComponent>();
+			mCircularBuffer = resource->mVBANPacketReceiver->getCircularBuffer();
+			mStreamName = resource->mStreamName;
 
 			// acquire audio service
 			mAudioService = getEntityInstance()->getCore()->getService<AudioService>();
 
 			mNodeManager = &mAudioService->getNodeManager();
-			mChannelRouting = mResource->mChannelRouting;
-
-            // get sample rate
-            mSampleRate = static_cast<int>(mNodeManager->getSampleRate());
+			mChannelRouting = resource->mChannelRouting;
 
             // create buffer player for each channel
-			auto mBufferPlayer = mNodeManager->makeSafe<SampleQueuePlayerNode>(*mNodeManager);
-			mBufferPlayer->setChannelCount(mChannelRouting.size());
+			mReader = mNodeManager->makeSafe<VBANCircularBufferReader>(*mNodeManager);
+			mReader->init(mCircularBuffer, mStreamName, mChannelRouting.size());
 
             // register to the packet receiver
-            mVbanReceiver->registerStreamListener(this);
+            mCircularBuffer->addStream(mStreamName, mChannelRouting.size());
 
 			return true;
 		}
 
 
-		bool VBANStreamPlayerComponentInstance::pushBuffers(const MultiSampleBuffer& buffers, utility::ErrorState& errorState)
+		void VBANStreamPlayerComponentInstance::setLatency(float latency)
 		{
-			if (buffers.getChannelCount() == getChannelCount())
-			{
-				mBufferPlayer->queueSamples(buffers);
-				return true;
-			}
-			else {
-				errorState.fail("Received %i buffers but expected %i", buffers.getChannelCount(), getChannelCount());
-				return false;
-			}
+			mCircularBuffer->setLatency(latency);
 		}
 
-
-		void VBANStreamPlayerComponentInstance::setLatency(int latency)
-		{
-			mBufferPlayer->setLatency(latency);
-			mBufferPlayer->setMaxQueueSize(latency * 2);
-		}
-
-
-		void VBANStreamPlayerComponentInstance::clearSpareBuffers()
-		{
-			mBufferPlayer->clearSpareBuffer();
-		}
 
 	}
 }
