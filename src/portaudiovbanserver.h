@@ -9,12 +9,12 @@ namespace nap
     namespace audio
     {
     
-        class NAPAPI portaudiovbanserver : public VBANUDPServer
+        class NAPAPI PortAudioVBANServer : public VBANUDPServer
         {
             RTTI_ENABLE(VBANUDPServer)
             
         public:
-            portaudiovbanserver(Core& core);
+            PortAudioVBANServer(Core& core);
 
 #if not defined(__x86_64__) && not defined(_M_X64) && defined(__APPLE__) // Apple silicon specific
 
@@ -25,7 +25,7 @@ namespace nap
             void threadFunction() override;
 
         private:
-            Slot<const audio::PortAudioServiceConfiguration::DeviceSettings&> mDeviceSettingsChangedSlot = { this, &portaudiovbanserver::deviceSettingsChanged };
+            Slot<const audio::PortAudioServiceConfiguration::DeviceSettings&> mDeviceSettingsChangedSlot = { this, &PortAudioVBANServer::deviceSettingsChanged };
 
             void deviceSettingsChanged(const audio::PortAudioServiceConfiguration::DeviceSettings& settings);
 

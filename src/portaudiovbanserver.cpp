@@ -4,7 +4,7 @@
     #include "pa_mac_core.h"
 #endif
 
-RTTI_BEGIN_CLASS_NO_DEFAULT_CONSTRUCTOR(nap::audio::portaudiovbanserver)
+RTTI_BEGIN_CLASS_NO_DEFAULT_CONSTRUCTOR(nap::audio::PortAudioVBANServer)
     RTTI_CONSTRUCTOR(nap::Core&)
 RTTI_END_CLASS
 
@@ -16,7 +16,7 @@ namespace nap
 
 #if not defined(__x86_64__) && not defined(_M_X64) && defined(__APPLE__) // Apple silicon specific
 
-        portaudiovbanserver::PortAudioVBANServer(Core &core) : VBANUDPServer(), mAudioService(*core.getService<PortAudioService>())
+        PortAudioVBANServer::PortAudioVBANServer(Core &core) : VBANUDPServer(), mAudioService(*core.getService<PortAudioService>())
         {
             if (mAudioService.isActive())
             {
@@ -27,7 +27,7 @@ namespace nap
         }
 
 
-        bool portaudiovbanserver::start(utility::ErrorState &errorState)
+        bool PortAudioVBANServer::start(utility::ErrorState &errorState)
         {
             if (mWorkGroup == nullptr)
                 return true; // Don't fail when there is no audio workgroup. An audio device can be selected later by the user.
@@ -37,14 +37,14 @@ namespace nap
         }
 
 
-        void portaudiovbanserver::stop()
+        void PortAudioVBANServer::stop()
         {
             if (mStarted)
                 VBANUDPServer::stop();
         }
 
 
-        void portaudiovbanserver::threadFunction()
+        void PortAudioVBANServer::threadFunction()
         {
             auto threadWorkgroup = mWorkGroup;
             os_workgroup_join_token_s joinToken;
@@ -58,7 +58,7 @@ namespace nap
         }
 
 
-        void portaudiovbanserver::deviceSettingsChanged(const audio::PortAudioServiceConfiguration::DeviceSettings &settings)
+        void PortAudioVBANServer::deviceSettingsChanged(const audio::PortAudioServiceConfiguration::DeviceSettings &settings)
         {
             auto device = mAudioService.getCurrentOutputDeviceIndex();
             if (device < 0)
