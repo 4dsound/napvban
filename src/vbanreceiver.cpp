@@ -6,7 +6,6 @@
 RTTI_BEGIN_CLASS_NO_DEFAULT_CONSTRUCTOR(nap::VBANReceiver)
     RTTI_CONSTRUCTOR(nap::Core&)
 	RTTI_PROPERTY("Server", &nap::VBANReceiver::mServer, nap::rtti::EPropertyMetaData::Required)
-	RTTI_PROPERTY("ManuallyRegisterAudioProcess", &nap::VBANReceiver::mManuallyRegisterAudioProcess, nap::rtti::EPropertyMetaData::Default)
 RTTI_END_CLASS
 
 namespace nap
@@ -19,17 +18,11 @@ namespace nap
     }
 
 
-    VBANReceiver::~VBANReceiver()
-    {
-    }
-
-
     bool VBANReceiver::init(utility::ErrorState &errorState)
     {
     	auto& nodeManager = mAudioService->getNodeManager();
     	mCircularBuffer = nodeManager.makeSafe<VBANCircularBuffer>(nodeManager);
-    	if (!mManuallyRegisterAudioProcess)
-    		nodeManager.registerRootProcess(mCircularBuffer.get());
+    	registerBufferProcess(mCircularBuffer.get());
     	mServer->registerListenerSlot(mPacketReceivedSlot);
         return true;
     }
@@ -38,8 +31,7 @@ namespace nap
     void VBANReceiver::onDestroy()
     {
         mServer->removeListenerSlot(mPacketReceivedSlot);
-    	if (!mManuallyRegisterAudioProcess)
-    		mAudioService->getNodeManager().unregisterRootProcess(mCircularBuffer.get());
+    	unregisterBufferProcess(mCircularBuffer.get());
     }
 
 
@@ -69,7 +61,6 @@ namespace nap
 
 		// get stream name, use it to forward buffers to any registered stream audio receivers
 		const std::string stream_name(hdr->streamname);
-		bool streamNameFound = false;
 
 		// Check if packet samplerate matches the current napaudio samplerate.
 		if (sample_rate != mCircularBuffer->getSampleRate())

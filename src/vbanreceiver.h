@@ -15,10 +15,8 @@ namespace nap
 
     public:
         ResourcePtr<VBANUDPServer> mServer = nullptr; ///< Property: 'Server' Pointer to the VBAN UDP server receiving the packets
-        bool mManuallyRegisterAudioProcess = false; ///< Property: 'ManuallyRegisterAudioProcess' Indicates whether the user takes responsibility of registering the circular buffer's process with a parent process. By default this is false and the circular buffer is registered as root process.
 
         VBANReceiver(Core& core);
-        ~VBANReceiver();
         bool init(utility::ErrorState& errorState) override;
         void onDestroy() override;
 
@@ -33,6 +31,13 @@ namespace nap
         void getErrorMessage(std::string& message);
 
         audio::SafePtr<VBANCircularBuffer> getCircularBuffer() { return mCircularBuffer.get(); }
+
+    private:
+        virtual void registerBufferProcess(audio::SafePtr<audio::Process> process) { getNodeManager().registerRootProcess(process); }
+        virtual void unregisterBufferProcess(audio::SafePtr<audio::Process> process) { getNodeManager().unregisterRootProcess(process); }
+
+    protected:
+        audio::NodeManager& getNodeManager() { return mAudioService->getNodeManager(); }
 
     private:
         Slot<const VBANUDPServer::Packet&> mPacketReceivedSlot = { this, &VBANReceiver::packetReceived };
