@@ -22,8 +22,13 @@ namespace nap
     {
     	auto& nodeManager = mAudioService->getNodeManager();
     	mCircularBuffer = nodeManager.makeSafe<VBANCircularBuffer>(nodeManager);
+
+    	// Register as root process
     	registerBufferProcess(mCircularBuffer.get());
+
+    	// Register with the VBANUDPServer
     	mServer->registerListenerSlot(mPacketReceivedSlot);
+
         return true;
     }
 

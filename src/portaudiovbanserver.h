@@ -8,7 +8,10 @@ namespace nap
 
     namespace audio
     {
-    
+        /**
+         * Version of the VBANUDPServer that is optimized to be used in combination with napportaudio.
+         * I uses the audioworkgroup threading feature on macOS.
+         */
         class NAPAPI PortAudioVBANServer : public VBANUDPServer
         {
             RTTI_ENABLE(VBANUDPServer)

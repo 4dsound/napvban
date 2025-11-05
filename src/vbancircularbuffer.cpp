@@ -8,39 +8,40 @@ namespace nap
 
 	void VBANCircularBuffer::addStream(const std::string &name, int channelCount)
 	{
-		std::lock_guard<std::mutex> lock(mMutex);
-
 		auto buffer = std::make_unique<ProtectedBuffer>();
 		buffer->mData.resize(channelCount, mSize);
-		mBuffers[name] = std::move(buffer);
+
+		{
+			std::lock_guard<std::mutex> lock(mBufferMapMutex);
+			mBufferMap[name] = std::move(buffer);
+			mStreamCount++;
+		}
 
 		// Reset read and write pointers
 		mWritePosition = 0;
 		mReadPosition = 0;
-
-		mStreamCount++;
 	}
 
 
 	void VBANCircularBuffer::removeStream(const std::string &name)
 	{
-		std::lock_guard<std::mutex> lock(mMutex);
-
-		mBuffers.erase(name);
+		std::lock_guard<std::mutex> lock(mBufferMapMutex);
+		mBufferMap.erase(name);
 		mStreamCount--;
 	}
 
 
-	bool VBANCircularBuffer::write(const std::string &name, audio::DiscreteTimeValue time, const audio::MultiSampleBuffer &input)
+	bool VBANCircularBuffer::write(const std::string &streamName, audio::DiscreteTimeValue time, const audio::MultiSampleBuffer &input)
 	{
-		std::lock_guard<std::mutex> lock(mMutex);
+		std::lock_guard<std::mutex> lock(mBufferMapMutex);
 
-		auto it = mBuffers.find(name);
-		if (it == mBuffers.end())
+		auto it = mBufferMap.find(streamName);
+		if (it == mBufferMap.end())
 			return false;
 
 		auto& buffer = it->second;
 
+		// Only write if the number of channels fits the buffer for the stream
 		if (buffer->mData.getChannelCount() == input.getChannelCount())
 		{
 			auto pos = time % mSize;
@@ -54,9 +55,11 @@ namespace nap
 			}
 		}
 
+		// Update the write position
 		if (time > mWritePosition)
 			mWritePosition = time;
 
+		// If the time is zero it means that all the streams are restarting and the write and read positions need to be reset.
 		if (time == 0 && mWritePosition != 0)
 		{
 			mWritePosition = 0;
@@ -67,20 +70,22 @@ namespace nap
 	}
 
 
-	void VBANCircularBuffer::read(const std::string &name, int channel, audio::SampleBuffer &output)
+	void VBANCircularBuffer::read(const std::string &streamName, int channel, audio::SampleBuffer &output)
 	{
+		// The read position can be negative when the stream is reset and the write position is zeroed.
 		if (mReadPosition < 0)
 		{
 			std::fill(output.begin(), output.end(), 0.f);
 			return;
 		}
 
-		auto it = mBuffers.find(name);
-		if (it == mBuffers.end())
+		auto it = mBufferMap.find(streamName);
+		if (it == mBufferMap.end())
 			return;
 
 		if (it->second->mMutex.try_lock())
 		{
+			// Only read if the channel is within the bounds.
 			if (channel < it->second->mData.getChannelCount())
 			{
 				auto& buffer = it->second->mData[channel];
@@ -102,10 +107,10 @@ namespace nap
 
 	void VBANCircularBuffer::setStreamChannelCount(const std::string &streamName, int channelCount)
 	{
-		std::lock_guard<std::mutex> lock(mMutex);
+		std::lock_guard<std::mutex> lock(mBufferMapMutex);
 
-		auto it = mBuffers.find(streamName);
-		assert(it != mBuffers.end());
+		auto it = mBufferMap.find(streamName);
+		assert(it != mBufferMap.end());
 
 		auto& buffer = it->second;
 		if (buffer->mData.getChannelCount() != channelCount)
@@ -128,25 +133,32 @@ namespace nap
 		auto latencyInSamples = mLatency.load() * getNodeManager().getSamplesPerMillisecond() + getBufferSize();
 		if (mResetReadPosition.check())
 		{
+			// The read position was requested to be reset.
 			Logger::debug("VBANCircularBuffer: reset read position.");
 			mReadPosition = mWritePosition - latencyInSamples;
 		}
 		else
 		{
+			// Increase the read position of the circular buffer.
 			mReadPosition += getBufferSize();
+
+			// If the read position overtakes the write position, reset it.
 			if (mReadPosition + getBufferSize() > mWritePosition)
 			{
 				mReadPosition = mWritePosition - latencyInSamples;
+
+				// This check is to avoid outputting this message every buffer when no data is coming in.
 				if (mReadPosition != mLastReadPosition)
 					Logger::debug("VBANCircularBuffer: Read position overtaking write position. Reset read position.");
 			}
+			// If the read position is too far behind, reset it.
 			else if (mWritePosition - mReadPosition > latencyInSamples * 2)
 			{
 				Logger::debug("VBANCircularBuffer: Read position too far behind. Reset read position.");
 				mReadPosition = mWritePosition - latencyInSamples;
 			}
 		}
-		mLastReadPosition = mReadPosition;
+		mLastReadPosition = mReadPosition; // Remember previous value
 	}
 
 
@@ -154,6 +166,8 @@ namespace nap
 	{
 		mCircularBuffer = circularBuffer;
 		mStreamName = streamName;
+
+		// Create output pins
 		for (int channel = 0; channel < channelCount; ++channel)
 			mOutputPins.emplace_back(std::make_unique<audio::OutputPin>(this));
 	}
@@ -161,6 +175,7 @@ namespace nap
 
 	void VBANCircularBufferReader::setChannelCount(int channelCount)
 	{
+		// Recreate output pins
 		mOutputPins.clear();
 		for (int channel = 0; channel < channelCount; ++channel)
 			mOutputPins.emplace_back(std::make_unique<audio::OutputPin>(this));
