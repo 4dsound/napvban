@@ -21,7 +21,7 @@ namespace nap
 	namespace audio
 	{
 
-		VBANSenderNode::VBANSenderNode(NodeManager& nodeManager) : Node(nodeManager), mEncoder(*this)
+		VBANSenderNode::VBANSenderNode(NodeManager& nodeManager, vban::SharedDirtyFlag& sharedDirtyFlag) : Node(nodeManager), mEncoder(*this, sharedDirtyFlag)
 		{
 			mInputPullResult.get().reserve(2);
 			sampleRateChanged(nodeManager.getSampleRate());

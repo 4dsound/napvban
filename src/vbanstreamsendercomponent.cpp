@@ -60,7 +60,7 @@ namespace nap
 		}
 
 		// Create the VBAN sender node
-		mVBANSenderNode = mNodeManager->makeSafe<VBANSenderNode>(*mNodeManager);
+		mVBANSenderNode = mNodeManager->makeSafe<VBANSenderNode>(*mNodeManager, resource->getSharedDirtyFlag());
 		mVBANSenderNode->setStreamName(resource->mStreamName);
 		mVBANSenderNode->setUDPClient(resource->mUdpClient.get());
 
