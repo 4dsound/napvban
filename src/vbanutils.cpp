@@ -6,6 +6,7 @@
 
 namespace nap
 {
+
 	bool utility::getVBANSampleRateFormatFromSampleRate(uint8_t& srFormat, int sampleRate, utility::ErrorState& errorState)
 	{
 		for(int i = 0; i < VBAN_SR_MAXNUMBER; i++)
@@ -33,4 +34,5 @@ namespace nap
 		errorState.fail("Could not find samplerate for VBAN sample rate format %i", srFormat);
 		return false;
 	}
+
 }

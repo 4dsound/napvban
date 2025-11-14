@@ -5,6 +5,7 @@
 #pragma once
 
 #include <utility/errorstate.h>
+#include <utility/dllexport.h>
 #include "vban/vban.h"
 
 namespace nap
@@ -18,7 +19,7 @@ namespace nap
 		 * @param errorState contains any errors
 		 * @return true on success
 		 */
-		bool getVBANSampleRateFormatFromSampleRate(uint8_t& srFormat, int sampleRate, utility::ErrorState& errorState);
+		bool NAPAPI getVBANSampleRateFormatFromSampleRate(uint8_t& srFormat, int sampleRate, utility::ErrorState& errorState);
 
 		/**
 		 * Translates VBAN sample rate format to sample rate, returns true on success
@@ -27,7 +28,7 @@ namespace nap
 		 * @param errorState contains any errors
 		 * @return true on success
 		 */
-		bool getSampleRateFromVBANSampleRateFormat(int& sampleRate, uint8_t srFormat, utility::ErrorState& errorState);
+		bool NAPAPI getSampleRateFromVBANSampleRateFormat(int& sampleRate, uint8_t srFormat, utility::ErrorState& errorState);
 	}
 }
 

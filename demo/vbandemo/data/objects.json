@@ -140,7 +140,7 @@
             "Update Method": "Spawn Own Thread"
         },
         {
-            "Type": "nap::VBANPacketReceiver",
+            "Type": "nap::VBANReceiver",
             "mID": "VBANPacketReceiver",
             "Server": "UDPServer"
         },
