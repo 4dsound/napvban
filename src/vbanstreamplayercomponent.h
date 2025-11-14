@@ -82,7 +82,6 @@ namespace nap
 			 * @param streamName this VBANStreamPlayer accepts
 			 */
 			void setStreamName(const std::string& streamName){ mStreamName = streamName; }
-			void setLatency(float value);
 
 		private:
 			SafeOwner<VBANCircularBufferReader> mReader;

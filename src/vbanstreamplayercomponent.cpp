@@ -58,12 +58,5 @@ namespace nap
 			return true;
 		}
 
-
-		void VBANStreamPlayerComponentInstance::setLatency(float latency)
-		{
-			mCircularBuffer->setLatency(latency);
-		}
-
-
 	}
 }

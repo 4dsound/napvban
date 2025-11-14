@@ -5,6 +5,8 @@
 #include <audio/utility/safeptr.h>
 #include <audio/utility/dirtyflag.h>
 
+#include "audio/core/audionodemanager.h"
+
 namespace nap
 {
 	/**
@@ -71,15 +73,20 @@ namespace nap
 		// Called from main thread
 
 		/**
-		 * Sets the latency of the circular buffer, which is equal to the difference between the read and write position.
-		 * @param latency Latency in milliseconds.
+		 * @return The latency in milliseconds, which is equal to the difference between the read and write position.
+		 */
+		float getLatency() const { return mLatency.load() / getNodeManager().getSamplesPerMillisecond(); }
+
+		/**
+		 * Sets the latency manually to a given amount instead of using calibration.
+		 * @param latency Latency in ms
 		 */
 		void setLatency(float latency);
 
 		/**
-		 * @return The latency in milliseconds, which is equal to the difference between the read and write position.
+		 * Starts calibrating the latency by zeroing it and then increasing it for each bufer underrun or overflow.
 		 */
-		float getLatency() const { return mLatency.load(); }
+		void calibrateLatency();
 
 		/**
 		 * @return The number of streamd received in the circular buffer.
@@ -103,11 +110,15 @@ namespace nap
 
 		int mSize = 4096;								// Size of the circular buffer in samples.
 		audio::DiscreteTimeValue mWritePosition = 0;	// Current write position in the circular buffer.
+		audio::DiscreteTimeValue mLastWritePosition = 0;
 		nap::int64 mReadPosition = 0;					// The read position can be negative when the write position is zeroed.
-		nap::int64 mLastReadPosition = 0;				// Used only in process() method.
-		std::atomic<float> mLatency = { 0 };			// Latency in ms. Used to calculate the read position from the write position.
+		std::atomic<int> mLatency = 0;
+		std::atomic<int> mManualLatency = 0;
+		std::atomic<bool> mSetLatencyManually = { false };
 		audio::DirtyFlag mResetReadPosition;			// This flag is set when the read position has to be recalculated from the write position.
 		std::atomic<int> mStreamCount = { 0 };			// Number of streams in the circular buffer.
+		static constexpr int LatencyDelta = 64;
+		static constexpr int MaxLatency = 2048;
 	};
 
 

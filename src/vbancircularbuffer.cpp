@@ -123,42 +123,71 @@ namespace nap
 
 	void VBANCircularBuffer::setLatency(float latency)
 	{
-		mLatency.store(latency);
+		mSetLatencyManually.store(true);
+		mManualLatency.store(latency * getNodeManager().getSamplesPerMillisecond());
+		mResetReadPosition.set();
+	}
+
+
+	void VBANCircularBuffer::calibrateLatency()
+	{
+		mSetLatencyManually.store(false);
 		mResetReadPosition.set();
 	}
 
 
 	void VBANCircularBuffer::process()
 	{
-		auto latencyInSamples = mLatency.load() * getNodeManager().getSamplesPerMillisecond() + getBufferSize();
 		if (mResetReadPosition.check())
 		{
 			// The read position was requested to be reset.
 			Logger::debug("VBANCircularBuffer: reset read position.");
-			mReadPosition = mWritePosition - latencyInSamples;
+			if (mSetLatencyManually.load())
+				mLatency.store(mManualLatency.load());
+			else
+				mLatency.store(getBufferSize());
+			mReadPosition = mWritePosition - mLatency.load();
 		}
 		else
 		{
 			// Increase the read position of the circular buffer.
 			mReadPosition += getBufferSize();
 
-			// If the read position overtakes the write position, reset it.
+			// If the read position overtakes the write position, increase the latency.
 			if (mReadPosition + getBufferSize() > mWritePosition)
 			{
-				mReadPosition = mWritePosition - latencyInSamples;
-
-				// This check is to avoid outputting this message every buffer when no data is coming in.
-				if (mReadPosition != mLastReadPosition)
-					Logger::debug("VBANCircularBuffer: Read position overtaking write position. Reset read position.");
+				// This check is to avoid changing the read position when no audio is coming in.
+				if (mWritePosition == mLastWritePosition)
+				{
+					mReadPosition = mWritePosition - mLatency.load();
+					mLastWritePosition = mWritePosition;
+					return;
+				}
+				Logger::debug("VBANCircularBuffer: Read position overtaking write position.");
+				auto latency = mManualLatency.load();
+				if (!mSetLatencyManually.load() && mLatency.load() < MaxLatency)
+				{
+					Logger::debug("Increasing latency");
+					latency = mLatency.load() + LatencyDelta;
+				}
+				mLatency.store(latency);
+				mReadPosition = mWritePosition - latency;
 			}
-			// If the read position is too far behind, reset it.
-			else if (mWritePosition - mReadPosition > latencyInSamples * 2)
+			// If the read position is too far behind, reset the latency.
+			else if (mWritePosition - mReadPosition > mLatency.load() * 2)
 			{
-				Logger::debug("VBANCircularBuffer: Read position too far behind. Reset read position.");
-				mReadPosition = mWritePosition - latencyInSamples;
+				auto latency = mManualLatency.load();
+				if (!mSetLatencyManually.load() && mLatency.load() < MaxLatency)
+				{
+					Logger::debug("Increasing latency");
+					latency = mLatency.load() + LatencyDelta;
+				}
+				mLatency.store(latency);
+				mReadPosition = mWritePosition - latency;
+				Logger::debug("VBANCircularBuffer: Read position too far behind.");
 			}
+			mLastWritePosition = mWritePosition;
 		}
-		mLastReadPosition = mReadPosition; // Remember previous value
 	}
 
 
