@@ -16,10 +16,9 @@ namespace nap
 		 * Translates given samplerate to VBAN sample rate format, returns true on success
 		 * @param srFormat reference to sample rate format
 		 * @param sampleRate the samplerate
-		 * @param errorState contains any errors
 		 * @return true on success
 		 */
-		bool NAPAPI getVBANSampleRateFormatFromSampleRate(uint8_t& srFormat, int sampleRate, utility::ErrorState& errorState);
+		bool NAPAPI getVBANSampleRateFormatFromSampleRate(uint8_t& srFormat, int sampleRate);
 
 		/**
 		 * Translates VBAN sample rate format to sample rate, returns true on success
@@ -28,7 +27,7 @@ namespace nap
 		 * @param errorState contains any errors
 		 * @return true on success
 		 */
-		bool NAPAPI getSampleRateFromVBANSampleRateFormat(int& sampleRate, uint8_t srFormat, utility::ErrorState& errorState);
+		bool NAPAPI getSampleRateFromVBANSampleRateFormat(int& sampleRate, uint8_t srFormat);
 	}
 }
 

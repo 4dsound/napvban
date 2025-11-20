@@ -31,16 +31,6 @@ namespace nap
         void onDestroy() override;
 
         /**
-         * @return True if incoming packets are not being handled correctly.
-         */
-        bool hasErrors();
-
-        /**
-         * @message When hasErrors() returns true, this is set to the current error message.
-         */
-        void getErrorMessage(std::string& message);
-
-        /**
          * @return The VBANCircularBuffer process that can be used to add and remove streams and read from by a VBANCircularBufferReader.
          */
         audio::SafePtr<VBANCircularBuffer> getCircularBuffer() { return mCircularBuffer.get(); }
@@ -68,17 +58,8 @@ namespace nap
         Slot<const VBANUDPServer::Packet&> mPacketReceivedSlot = { this, &VBANReceiver::packetReceived };
         void packetReceived(const VBANUDPServer::Packet& packet);
 
-        // Checking packet integrity
-        bool checkPacket(utility::ErrorState& errorState, nap::uint8 const* buffer, size_t size);
-        bool checkPcmPacket(utility::ErrorState& errorState, nap::uint8 const* buffer, size_t size);
-
         audio::SafeOwner<VBANCircularBuffer> mCircularBuffer; // The VBANCircularBuffer to write packet data into
-        audio::MultiSampleBuffer mBuffers;                    // Helper buffer here to not reallocate for every received packet
         audio::AudioService* mAudioService = nullptr;
-
-        // For error reporting
-    	std::string mErrorMessage;
-    	std::atomic<int> mCorrectPacketCounter = { 0 };
     };
 
 }

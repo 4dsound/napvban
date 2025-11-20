@@ -7,6 +7,8 @@
 
 #include "audio/core/audionodemanager.h"
 
+#include <vbanutils.h>
+
 namespace nap
 {
 	/**
@@ -22,7 +24,7 @@ namespace nap
 		 * Constructor
 		 * @param nodeManager The NodeManager of the system
 		 */
-		VBANCircularBuffer(audio::NodeManager& nodeManager) : audio::Process(nodeManager) { }
+		VBANCircularBuffer(audio::NodeManager& nodeManager);
 
 		// Called from control thread
 
@@ -42,15 +44,12 @@ namespace nap
 		// Called from the VBAN receiver thread
 
 		/**
-		 * Write audio data for a certain stream to the circular buffer.
-		 * The write position of the circular buffer will be updated to time + buffer.getSize()
-		 * @param name Name of the destination stream
-		 * @param time Time in samples where the audio will be written into the buffer.
-		 *	The time value is counted since the start of the stream and will wrap around the size of the buffer.
-		 * @param buffer Audio data including size in frames for the channels of the stream.
-		 * @return True
+		 *
+		 * @param header
+		 * @param size
+		 * @return
 		 */
-		bool write(const std::string &name, audio::DiscreteTimeValue time, const audio::MultiSampleBuffer &buffer);
+		bool write(const VBanHeader& header, size_t size);
 
 		// Called from the audio threads
 
@@ -93,11 +92,23 @@ namespace nap
 		 */
 		int getStreamCount() const { return mStreamCount.load(); }
 
+		/**
+		 * Acquire any error logging in a thread-safe manner.
+		 * @param message
+		 */
+		void getErrorMessage(std::string& message) const;
+
 	private:
 		// Inherited from Process
 		void process() override;
 		void sampleRateChanged(float sampleRate) override { mResetReadPosition.set(); }
 		void bufferSizeChanged(int bufferSize) override { mResetReadPosition.set(); }
+
+		// Checking packet integrity
+		bool checkPacket(const VBanHeader& header, size_t size);
+
+		// Set error message
+		void setError(const std::string& errorMessage);
 
 		// Map of the (circular) buffer for each stream, protected by a mutex for resizing.
 		struct ProtectedBuffer
@@ -112,6 +123,7 @@ namespace nap
 		audio::DiscreteTimeValue mWritePosition = 0;	// Current write position in the circular buffer.
 		audio::DiscreteTimeValue mLastWritePosition = 0;
 		nap::int64 mReadPosition = 0;					// The read position can be negative when the write position is zeroed.
+		std::string mStreamName;						// For internal use, kept here to avoid reallocations.
 		std::atomic<int> mLatency = 0;
 		std::atomic<int> mManualLatency = 0;
 		std::atomic<bool> mSetLatencyManually = { false };
@@ -119,6 +131,10 @@ namespace nap
 		std::atomic<int> mStreamCount = { 0 };			// Number of streams in the circular buffer.
 		static constexpr int LatencyDelta = 64;
 		static constexpr int MaxLatency = 2048;
+
+		// For error reporting
+		std::string mErrorMessage;
+		mutable std::mutex mErrorMessageMutex;
 	};
 
 

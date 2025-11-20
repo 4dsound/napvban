@@ -2,9 +2,130 @@
 
 #include "audio/core/audionodemanager.h"
 #include "nap/logger.h"
+#include <vbanutils.h>
 
 namespace nap
 {
+
+	VBANCircularBuffer::VBANCircularBuffer(audio::NodeManager &nodeManager) : audio::Process(nodeManager)
+	{
+		mStreamName.reserve(VBAN_STREAM_NAME_SIZE);
+	}
+
+
+	bool VBANCircularBuffer::write(const VBanHeader& header, size_t size)
+	{
+		// Check packet integrity
+		if (!checkPacket(header, size))
+			return false;
+
+		// Check supported bit depth and derive sample size
+		int sample_size = 0;
+		if (header.format_bit == VBAN_BITFMT_32_INT)
+			sample_size = 4;
+		else if (header.format_bit == VBAN_BITFMT_16_INT)
+			sample_size = 2;
+		else {
+			setError("Unsupported bit depth.");
+			return false;
+		}
+
+		// Sample rate must match the audio engine sample rate
+		int const sample_rate_format = header.format_SR & VBAN_SR_MASK;
+		int packet_sample_rate = 0;
+		if (!utility::getSampleRateFromVBANSampleRateFormat(packet_sample_rate, sample_rate_format))
+		{
+			setError("Unsupported sample rate.");
+			return false;
+		}
+		if (packet_sample_rate != getSampleRate())
+		{
+			setError("Sample rate mismatch.");
+			return false;
+		}
+
+		// Stream name and packet properties
+		mStreamName = header.streamname;
+		const int frameCount = header.format_nbs + 1;
+		const int channelCount = header.format_nbc + 1;
+		const auto packetCounter = header.nuFrame;
+		const audio::DiscreteTimeValue time = packetCounter * frameCount;
+
+		{
+			std::lock_guard<std::mutex> lock(mBufferMapMutex);
+
+			// Locate stream buffer
+			auto it = mBufferMap.find(mStreamName);
+			if (it == mBufferMap.end())
+				return false;
+			auto& protectedBuffer = it->second;
+
+			// Deinterleave and convert directly into circular buffer if channel count matches
+			if (protectedBuffer->mData.getChannelCount() == channelCount)
+			{
+				auto pos = time % mSize;
+				const uint8_t* data = reinterpret_cast<const uint8_t*>(&header) + VBAN_HEADER_SIZE;
+				if (sample_size == 4) // 32 bit
+				{
+					for (int i = 0; i < frameCount; ++i)
+					{
+						for (int ch = 0; ch < channelCount; ++ch)
+						{
+							unsigned char b1 = data[0];
+							unsigned char b2 = data[1];
+							unsigned char b3 = data[2];
+							unsigned char b4 = data[3];
+							int32_t ival = (static_cast<int32_t>(b4) << 24) |
+											(static_cast<int32_t>(b3) << 16) |
+											(static_cast<int32_t>(b2) << 8)  |
+											(0x000000ff & b1);
+							float f = static_cast<float>(ival) / static_cast<float>(std::numeric_limits<int32_t>::max());
+							protectedBuffer->mData[ch][pos] = f;
+							data += 4;
+						}
+						pos++;
+						if (pos >= mSize) pos = 0;
+					}
+				}
+				else // 16-bit
+				{
+					for (int i = 0; i < frameCount; ++i)
+					{
+						for (int ch = 0; ch < channelCount; ++ch)
+						{
+							unsigned char b1 = data[0];
+							unsigned char b2 = data[1];
+							int16_t ival = static_cast<int16_t>(b2) << 8 | (0x00ff & b1);
+							float f = static_cast<float>(ival) / static_cast<float>(std::numeric_limits<int16_t>::max());
+							protectedBuffer->mData[ch][pos] = f;
+							data += 2;
+						}
+						pos++;
+						if (pos >= mSize) pos = 0;
+					}
+				}
+			}
+		}
+
+		// Update the write position using time derived from packet counter and frame count
+		if (time > mWritePosition)
+			mWritePosition = time;
+		if (time == 0 && mWritePosition != 0)
+		{
+			mWritePosition = 0;
+			mResetReadPosition.set();
+		}
+
+		// Write successful, clear error message once
+		if (!mErrorMessage.empty())
+		{
+			std::lock_guard<std::mutex> lock(mErrorMessageMutex);
+			mErrorMessage.clear();
+		}
+
+		return true;
+	}
+
 
 	void VBANCircularBuffer::addStream(const std::string &name, int channelCount)
 	{
@@ -14,7 +135,7 @@ namespace nap
 		{
 			std::lock_guard<std::mutex> lock(mBufferMapMutex);
 			mBufferMap[name] = std::move(buffer);
-			mStreamCount++;
+			++mStreamCount;
 		}
 
 		// Reset read and write pointers
@@ -27,46 +148,7 @@ namespace nap
 	{
 		std::lock_guard<std::mutex> lock(mBufferMapMutex);
 		mBufferMap.erase(name);
-		mStreamCount--;
-	}
-
-
-	bool VBANCircularBuffer::write(const std::string &streamName, audio::DiscreteTimeValue time, const audio::MultiSampleBuffer &input)
-	{
-		std::lock_guard<std::mutex> lock(mBufferMapMutex);
-
-		auto it = mBufferMap.find(streamName);
-		if (it == mBufferMap.end())
-			return false;
-
-		auto& buffer = it->second;
-
-		// Only write if the number of channels fits the buffer for the stream
-		if (buffer->mData.getChannelCount() == input.getChannelCount())
-		{
-			auto pos = time % mSize;
-			for (auto i = 0; i < input.getSize(); ++i)
-			{
-				for (auto channel	= 0; channel < input.getChannelCount(); ++channel)
-					buffer->mData[channel][pos] = input[channel][i];
-				pos++;
-				if (pos >= mSize)
-					pos = 0;
-			}
-		}
-
-		// Update the write position
-		if (time > mWritePosition)
-			mWritePosition = time;
-
-		// If the time is zero it means that all the streams are restarting and the write and read positions need to be reset.
-		if (time == 0 && mWritePosition != 0)
-		{
-			mWritePosition = 0;
-			mResetReadPosition.set();
-		}
-
-		return true;
+		--mStreamCount;
 	}
 
 
@@ -107,7 +189,7 @@ namespace nap
 
 	void VBANCircularBuffer::setStreamChannelCount(const std::string &streamName, int channelCount)
 	{
-		std::lock_guard<std::mutex> lock(mBufferMapMutex);
+		std::lock_guard<std::mutex> mapLock(mBufferMapMutex);
 
 		auto it = mBufferMap.find(streamName);
 		assert(it != mBufferMap.end());
@@ -115,7 +197,7 @@ namespace nap
 		auto& buffer = it->second;
 		if (buffer->mData.getChannelCount() != channelCount)
 		{
-			std::lock_guard<std::mutex> lock(buffer->mMutex);
+			std::lock_guard<std::mutex> bufferLock(buffer->mMutex);
 			buffer->mData.resize(channelCount, mSize);
 		}
 	}
@@ -133,6 +215,16 @@ namespace nap
 	{
 		mSetLatencyManually.store(false);
 		mResetReadPosition.set();
+	}
+
+
+	void VBANCircularBuffer::getErrorMessage(std::string &message) const
+	{
+		if (mErrorMessageMutex.try_lock())
+		{
+			message = mErrorMessage;
+			mErrorMessageMutex.unlock();
+		}
 	}
 
 
@@ -188,6 +280,53 @@ namespace nap
 			}
 			mLastWritePosition = mWritePosition;
 		}
+	}
+
+
+	bool VBANCircularBuffer::checkPacket(const VBanHeader& header, size_t size)
+	{
+		if (size > VBAN_DATA_MAX_SIZE)
+		{
+			setError("Packet exceeds maximum size.");
+			return false;
+		}
+
+		if (header.vban != *reinterpret_cast<const int32_t*>("VBAN"))
+		{
+			setError("Invalid packet header ID.");
+			return false;
+		}
+
+		if (header.format_nbc < 0)
+		{
+			setError("Channel count should be greater than zero.");
+			return false;
+		}
+
+		// check protocol
+		auto protocol = static_cast<VBanProtocol>(header.format_SR & VBAN_PROTOCOL_MASK);
+		if (protocol != VBAN_PROTOCOL_AUDIO)
+		{
+			setError("Invalid protocol ID, only audio protocol supported.");
+			return false;
+		}
+
+		// Check codec
+		auto codec = static_cast<VBanCodec>(header.format_bit & VBAN_CODEC_MASK);
+		if (codec != VBAN_CODEC_PCM)
+		{
+			setError("Invalid codec ID, only PCM codec supported.");
+			return false;
+		}
+
+		return true;
+	}
+
+
+	void VBANCircularBuffer::setError(const std::string &errorMessage)
+	{
+		std::lock_guard<std::mutex> lock(mErrorMessageMutex);
+		mErrorMessage = errorMessage;
 	}
 
 

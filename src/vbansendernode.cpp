@@ -54,12 +54,9 @@ namespace nap
 		void VBANSenderNode::sampleRateChanged(float sampleRate)
 		{
 			// acquire sample rate format
-			utility::ErrorState errorState;
 			nap::uint8 format;
-			if (!utility::getVBANSampleRateFormatFromSampleRate(format,
-																static_cast<int>(sampleRate),
-																errorState))
-				nap::Logger::error(errorState.toString().c_str());
+			if (!utility::getVBANSampleRateFormatFromSampleRate(format, static_cast<int>(sampleRate)))
+				nap::Logger::error("Failed to acquire sample rate format.");
 			else
 				mEncoder.setSampleRateFormat(format);
 		}
