@@ -15,6 +15,15 @@ namespace nap
 
 	bool VBANCircularBuffer::write(const VBanHeader& header, size_t size)
 	{
+		std::lock_guard<std::mutex> lock(mBufferMapMutex);
+
+		// Find stream buffer
+		mStreamName = header.streamname;
+		auto it = mBufferMap.find(mStreamName);
+		if (it == mBufferMap.end())	// Exit quietly when stream is not found
+			return false;
+		auto& streamBuffer = it->second;
+
 		// Check packet integrity
 		if (!checkPacket(header, size))
 			return false;
@@ -44,65 +53,53 @@ namespace nap
 			return false;
 		}
 
-		// Stream name and packet properties
-		mStreamName = header.streamname;
 		const int frameCount = header.format_nbs + 1;
 		const int channelCount = header.format_nbc + 1;
 		const auto packetCounter = header.nuFrame;
 		const audio::DiscreteTimeValue time = packetCounter * frameCount;
 
+		// Deinterleave and convert directly into circular buffer if channel count matches
+		if (streamBuffer->mData.getChannelCount() == channelCount)
 		{
-			std::lock_guard<std::mutex> lock(mBufferMapMutex);
-
-			// Locate stream buffer
-			auto it = mBufferMap.find(mStreamName);
-			if (it == mBufferMap.end())
-				return false;
-			auto& protectedBuffer = it->second;
-
-			// Deinterleave and convert directly into circular buffer if channel count matches
-			if (protectedBuffer->mData.getChannelCount() == channelCount)
+			auto pos = time % mSize;
+			const uint8_t* data = reinterpret_cast<const uint8_t*>(&header) + VBAN_HEADER_SIZE;
+			if (sample_size == 4) // 32 bit
 			{
-				auto pos = time % mSize;
-				const uint8_t* data = reinterpret_cast<const uint8_t*>(&header) + VBAN_HEADER_SIZE;
-				if (sample_size == 4) // 32 bit
+				for (int i = 0; i < frameCount; ++i)
 				{
-					for (int i = 0; i < frameCount; ++i)
+					for (int ch = 0; ch < channelCount; ++ch)
 					{
-						for (int ch = 0; ch < channelCount; ++ch)
-						{
-							unsigned char b1 = data[0];
-							unsigned char b2 = data[1];
-							unsigned char b3 = data[2];
-							unsigned char b4 = data[3];
-							int32_t ival = (static_cast<int32_t>(b4) << 24) |
-											(static_cast<int32_t>(b3) << 16) |
-											(static_cast<int32_t>(b2) << 8)  |
-											(0x000000ff & b1);
-							float f = static_cast<float>(ival) / static_cast<float>(std::numeric_limits<int32_t>::max());
-							protectedBuffer->mData[ch][pos] = f;
-							data += 4;
-						}
-						pos++;
-						if (pos >= mSize) pos = 0;
+						unsigned char b1 = data[0];
+						unsigned char b2 = data[1];
+						unsigned char b3 = data[2];
+						unsigned char b4 = data[3];
+						int32_t ival = (static_cast<int32_t>(b4) << 24) |
+										(static_cast<int32_t>(b3) << 16) |
+										(static_cast<int32_t>(b2) << 8)  |
+										(0x000000ff & b1);
+						float f = static_cast<float>(ival) / static_cast<float>(std::numeric_limits<int32_t>::max());
+						streamBuffer->mData[ch][pos] = f;
+						data += 4;
 					}
+					pos++;
+					if (pos >= mSize) pos = 0;
 				}
-				else // 16-bit
+			}
+			else // 16-bit
+			{
+				for (int i = 0; i < frameCount; ++i)
 				{
-					for (int i = 0; i < frameCount; ++i)
+					for (int ch = 0; ch < channelCount; ++ch)
 					{
-						for (int ch = 0; ch < channelCount; ++ch)
-						{
-							unsigned char b1 = data[0];
-							unsigned char b2 = data[1];
-							int16_t ival = static_cast<int16_t>(b2) << 8 | (0x00ff & b1);
-							float f = static_cast<float>(ival) / static_cast<float>(std::numeric_limits<int16_t>::max());
-							protectedBuffer->mData[ch][pos] = f;
-							data += 2;
-						}
-						pos++;
-						if (pos >= mSize) pos = 0;
+						unsigned char b1 = data[0];
+						unsigned char b2 = data[1];
+						int16_t ival = static_cast<int16_t>(b2) << 8 | (0x00ff & b1);
+						float f = static_cast<float>(ival) / static_cast<float>(std::numeric_limits<int16_t>::max());
+						streamBuffer->mData[ch][pos] = f;
+						data += 2;
 					}
+					pos++;
+					if (pos >= mSize) pos = 0;
 				}
 			}
 		}
