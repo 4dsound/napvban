@@ -17,7 +17,6 @@
 RTTI_BEGIN_CLASS(nap::audio::VBANStreamPlayerComponent)
 		RTTI_PROPERTY("VBANPacketReceiver", &nap::audio::VBANStreamPlayerComponent::mVBANPacketReceiver, nap::rtti::EPropertyMetaData::Required)
 		RTTI_PROPERTY("ChannelRouting", &nap::audio::VBANStreamPlayerComponent::mChannelRouting, nap::rtti::EPropertyMetaData::Default)
-		RTTI_PROPERTY("MaxBufferSize", &nap::audio::VBANStreamPlayerComponent::mMaxBufferSize, nap::rtti::EPropertyMetaData::Default)
 		RTTI_PROPERTY("StreamName", &nap::audio::VBANStreamPlayerComponent::mStreamName, nap::rtti::EPropertyMetaData::Default)
 RTTI_END_CLASS
 
@@ -32,70 +31,31 @@ namespace nap
 	{
 		void VBANStreamPlayerComponentInstance::onDestroy()
 		{
-            mVbanReceiver->removeStreamListener(this);
+			mCircularBuffer->removeStream(mStreamName);
 		}
 
 
 		bool VBANStreamPlayerComponentInstance::init(utility::ErrorState& errorState)
 		{
-
-
             // acquire resources
-			mResource = getComponent<VBANStreamPlayerComponent>();
-			mVbanReceiver = mResource->mVBANPacketReceiver.get();
-			mStreamName = mResource->mStreamName;
-			// TODO: MAKE NICER
+			auto resource = getComponent<VBANStreamPlayerComponent>();
+			mCircularBuffer = resource->mVBANPacketReceiver->getCircularBuffer();
+			mStreamName = resource->mStreamName;
 
 			// acquire audio service
 			mAudioService = getEntityInstance()->getCore()->getService<AudioService>();
 
 			mNodeManager = &mAudioService->getNodeManager();
-			mChannelRouting = mResource->mChannelRouting;
-
-            // get sample rate
-            mSampleRate = static_cast<int>(mNodeManager->getSampleRate());
+			mChannelRouting = resource->mChannelRouting;
 
             // create buffer player for each channel
-			for (auto channel = 0; channel < mChannelRouting.size(); ++channel)
-			{
-				auto bufferPlayer = mNodeManager->makeSafe<SampleQueuePlayerNode>(*mNodeManager);
-                bufferPlayer->setMaxQueueSize(mResource->mMaxBufferSize);
-				mBufferPlayers.emplace_back(std::move(bufferPlayer));
-			}
+			mReader = mNodeManager->makeSafe<VBANCircularBufferReader>(*mNodeManager);
+			mReader->init(mCircularBuffer, mStreamName, mChannelRouting.size());
 
             // register to the packet receiver
-            mVbanReceiver->registerStreamListener(this);
+            mCircularBuffer->addStream(mStreamName, mChannelRouting.size());
 
 			return true;
-		}
-
-
-		bool VBANStreamPlayerComponentInstance::pushBuffers(const std::vector<std::vector<float>>& buffers, utility::ErrorState& errorState)
-		{
-			if (buffers.size() >= getChannelCount())
-			{
-				for(int i = 0; i < mBufferPlayers.size(); i++)
-					mBufferPlayers[i]->queueSamples(&buffers[i][0], buffers[i].size());
-				return true;
-			}
-			else {
-				errorState.fail("Received %i buffers but expected %i", buffers.size(), getChannelCount());
-				return false;
-			}
-		}
-
-
-		void VBANStreamPlayerComponentInstance::setLatency(int latency)
-		{
-			for (auto& node : mBufferPlayers)
-				node->setLatency(latency);
-		}
-
-
-		void VBANStreamPlayerComponentInstance::clearSpareBuffers()
-		{
-			for (auto& node : mBufferPlayers)
-				node->clearSpareBuffer();
 		}
 
 	}

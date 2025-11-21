@@ -5,6 +5,6 @@
     "RequiredModules": [
         "napudp",
         "napportaudio"
-    ], 
+    ],
     "WindowsDllSearchPaths": []
 }

@@ -6,31 +6,29 @@
 
 namespace nap
 {
-	bool utility::getVBANSampleRateFormatFromSampleRate(uint8_t& srFormat, int sampleRate, utility::ErrorState& errorState)
+
+	bool utility::getVBANSampleRateFormatFromSampleRate(uint8_t& srFormat, int sampleRate)
 	{
-		for(int i = 0; i < VBAN_SR_MAXNUMBER; i++)
+		for (int i = 0; i < VBAN_SR_MAXNUMBER; i++)
 		{
-			if (sampleRate==VBanSRList[i])
+			if (sampleRate == VBanSRList[i])
 			{
 				srFormat = i;
 				return true;
 			}
 		}
-
-		errorState.fail("Could not find VBAN sample rate format for samplerate %i", sampleRate);
 		return false;
 	}
 
 
-	bool utility::getSampleRateFromVBANSampleRateFormat(int& sampleRate, uint8_t srFormat, utility::ErrorState& errorState)
+	bool utility::getSampleRateFromVBANSampleRateFormat(int& sampleRate, uint8_t srFormat)
 	{
 		if (srFormat >= 0 && srFormat < VBAN_SR_MAXNUMBER)
 		{
 			sampleRate = VBanSRList[srFormat];
 			return true;
 		}
-
-		errorState.fail("Could not find samplerate for VBAN sample rate format %i", srFormat);
 		return false;
 	}
+
 }
