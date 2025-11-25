@@ -168,14 +168,23 @@ namespace nap
 			if (channel < it->second->mData.getChannelCount())
 			{
 				auto& buffer = it->second->mData[channel];
-				auto pos = mReadPosition % mSize;
+				long double pos = mReadPosition;
 				for (auto i = 0; i < output.size(); ++i)
 				{
-					output[i] = buffer[pos];
-					buffer[pos] = 0.f;
-					pos++;
-					if (pos >= mSize)
-						pos = 0;
+					auto flooredPos = audio::DiscreteTimeValue(pos);
+					int minPos = flooredPos % mSize;
+					int maxPos = minPos + 1;
+					if (maxPos == mSize)
+						maxPos = 0;
+					float minValue = buffer[minPos];
+					float maxValue = buffer[maxPos];
+					float fractionalPart = pos - flooredPos;
+					output[i] = minValue + (fractionalPart * (maxValue - minValue));
+					int lastPos = minPos - 1;
+					if (lastPos < 0)
+						lastPos = mSize - 1;
+					buffer[lastPos] = 0.f;
+					pos += mClockDriftRatio;
 				}
 			}
 
@@ -234,13 +243,19 @@ namespace nap
 			if (mSetLatencyManually.load())
 				mLatency.store(mManualLatency.load());
 			else
-				mLatency.store(getBufferSize());
+				mLatency.store(getBufferSize() * 2);
 			mReadPosition = mWritePosition - mLatency.load();
+			mLocalTime = 0;
+			mWritePositionAtReset = mWritePosition;
+			mClockDriftRatio = 1.f;
 		}
-		else
-		{
+		else {
+			// Recalculate the clock drift ratio
+			mLocalTime += getBufferSize();
+			mClockDriftRatio = double(mWritePosition - mWritePositionAtReset) / double(mLocalTime);
+
 			// Increase the read position of the circular buffer.
-			mReadPosition += getBufferSize();
+			mReadPosition += getBufferSize() * mClockDriftRatio;
 
 			// If the read position overtakes the write position, increase the latency.
 			if (mReadPosition + getBufferSize() > mWritePosition)
@@ -252,7 +267,7 @@ namespace nap
 					mLastWritePosition = mWritePosition;
 					return;
 				}
-				Logger::debug("VBANCircularBuffer: Read position overtaking write position.");
+				Logger::debug("VBANCircularBuffer: Read position overtaking write position. Clock drift ratio: %f", mClockDriftRatio);
 				auto latency = mManualLatency.load();
 				if (!mSetLatencyManually.load() && mLatency.load() < MaxLatency)
 				{
@@ -262,6 +277,7 @@ namespace nap
 				mLatency.store(latency);
 				mReadPosition = mWritePosition - latency;
 			}
+
 			// If the read position is too far behind, reset the latency.
 			else if (mWritePosition - mReadPosition > mLatency.load() * 2)
 			{
@@ -273,7 +289,7 @@ namespace nap
 				}
 				mLatency.store(latency);
 				mReadPosition = mWritePosition - latency;
-				Logger::debug("VBANCircularBuffer: Read position too far behind.");
+				Logger::debug("VBANCircularBuffer: Read position too far behind. Clock drift ratio: %f", mClockDriftRatio);
 			}
 			mLastWritePosition = mWritePosition;
 		}
