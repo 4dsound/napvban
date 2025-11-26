@@ -234,7 +234,7 @@ namespace nap
 			if (mSetLatencyManually.load())
 				mLatency.store(mManualLatency.load());
 			else
-				mLatency.store(getBufferSize());
+				mLatency.store(getBufferSize() * 2.f);
 			mReadPosition = mWritePosition - mLatency.load();
 		}
 		else
