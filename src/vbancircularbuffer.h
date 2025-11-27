@@ -119,9 +119,10 @@ namespace nap
 		std::map<std::string, std::unique_ptr<ProtectedBuffer>> mBufferMap;
 		std::mutex mBufferMapMutex;						// Protects the buffer map.
 
-		int mSize = 4096;								// Size of the circular buffer in samples.
+		int mSize = 8192;								// Size of the circular buffer in samples.
 		audio::DiscreteTimeValue mWritePosition = 0;	// Current write position in the circular buffer.
 		audio::DiscreteTimeValue mLastWritePosition = 0;
+		audio::DiscreteTimeValue mFadeInTime = 0;
 		nap::int64 mReadPosition = 0;					// The read position can be negative when the write position is zeroed.
 		std::string mStreamName;						// For internal use, kept here to avoid reallocations.
 		std::atomic<int> mLatency = 0;
@@ -129,8 +130,9 @@ namespace nap
 		std::atomic<bool> mSetLatencyManually = { false };
 		audio::DirtyFlag mResetReadPosition;			// This flag is set when the read position has to be recalculated from the write position.
 		std::atomic<int> mStreamCount = { 0 };			// Number of streams in the circular buffer.
-		static constexpr int LatencyDelta = 64;
 		static constexpr int MaxLatency = 2048;
+
+		int mCounter = 0;
 
 		// For error reporting
 		std::string mErrorMessage;

@@ -242,6 +242,14 @@ namespace nap
 			// Increase the read position of the circular buffer.
 			mReadPosition += getBufferSize();
 
+			mCounter += getBufferSize();
+			if (mCounter > getSampleRate())
+			{
+				mCounter = 0;
+				auto realLatency = mWritePosition - mReadPosition;
+				Logger::debug("VBANCircularBuffer: Actual Latency: %f ms", realLatency / getNodeManager().getSamplesPerMillisecond());
+			}
+
 			// If the read position overtakes the write position, increase the latency.
 			if (mReadPosition + getBufferSize() > mWritePosition)
 			{
@@ -257,7 +265,7 @@ namespace nap
 				if (!mSetLatencyManually.load() && mLatency.load() < MaxLatency)
 				{
 					Logger::debug("Increasing latency");
-					latency = mLatency.load() + LatencyDelta;
+					latency = mLatency.load() + getBufferSize();
 				}
 				mLatency.store(latency);
 				mReadPosition = mWritePosition - latency;
@@ -269,7 +277,7 @@ namespace nap
 				if (!mSetLatencyManually.load() && mLatency.load() < MaxLatency)
 				{
 					Logger::debug("Increasing latency");
-					latency = mLatency.load() + LatencyDelta;
+					latency = mLatency.load() + getBufferSize();
 				}
 				mLatency.store(latency);
 				mReadPosition = mWritePosition - latency;
