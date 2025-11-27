@@ -3,6 +3,12 @@
 #include <vbanudpserver.h>
 #include <audio/service/portaudioservice.h>
 
+#ifdef __APPLE__
+    #if !defined(__x86_64__) && !defined(_M_X64)
+#define __APPLESILICON__
+    #endif
+#endif
+
 namespace nap
 {
 
@@ -19,7 +25,8 @@ namespace nap
         public:
             PortAudioVBANServer(Core& core);
 
-#if not defined(__x86_64__) && not defined(_M_X64) && defined(__APPLE__) // Apple silicon specific
+            // Apple silicon specific
+#ifdef __APPLESILICON__
 
             bool start(utility::ErrorState& errorState) override;
             void stop() override;
@@ -28,7 +35,8 @@ namespace nap
             void threadFunction() override;
 
         private:
-            Slot<const audio::PortAudioServiceConfiguration::DeviceSettings&> mDeviceSettingsChangedSlot = { this, &PortAudioVBANServer::deviceSettingsChanged };
+            Slot<const audio::PortAudioServiceConfiguration::DeviceSettings&> mDevice
+            SettingsChangedSlot = { this, &PortAudioVBANServer::deviceSettingsChanged };
 
             void deviceSettingsChanged(const audio::PortAudioServiceConfiguration::DeviceSettings& settings);
 

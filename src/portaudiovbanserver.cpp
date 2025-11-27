@@ -1,6 +1,6 @@
 #include "portaudiovbanserver.h"
 
-#if not defined(__x86_64__) && not defined(_M_X64) && defined(__APPLE__) // Apple silicon specific
+#ifdef __APPLESILICON__
     #include "pa_mac_core.h"
 #endif
 
@@ -14,7 +14,7 @@ namespace nap
     namespace audio
     {
 
-#if not defined(__x86_64__) && not defined(_M_X64) && defined(__APPLE__) // Apple silicon specific
+#ifdef __APPLESILICON__
 
         PortAudioVBANServer::PortAudioVBANServer(Core &core) : VBANUDPServer(), mAudioService(*core.getService<PortAudioService>())
         {
