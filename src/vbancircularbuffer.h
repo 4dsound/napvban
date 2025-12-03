@@ -4,8 +4,7 @@
 #include <audio/utility/audiotypes.h>
 #include <audio/utility/safeptr.h>
 #include <audio/utility/dirtyflag.h>
-
-#include "audio/core/audionodemanager.h"
+#include <audio/core/audionodemanager.h>
 
 #include <vbanutils.h>
 

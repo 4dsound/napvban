@@ -1,7 +1,7 @@
 #include "vbancircularbuffer.h"
 
-#include "audio/core/audionodemanager.h"
-#include "nap/logger.h"
+#include <audio/core/audionodemanager.h>
+#include <nap/logger.h>
 #include <vbanutils.h>
 
 namespace nap
