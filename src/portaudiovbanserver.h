@@ -35,8 +35,7 @@ namespace nap
             void threadFunction() override;
 
         private:
-            Slot<const audio::PortAudioServiceConfiguration::DeviceSettings&> mDevice
-            SettingsChangedSlot = { this, &PortAudioVBANServer::deviceSettingsChanged };
+            Slot<const audio::PortAudioServiceConfiguration::DeviceSettings&> mDeviceSettingsChangedSlot = { this, &PortAudioVBANServer::deviceSettingsChanged };
 
             void deviceSettingsChanged(const audio::PortAudioServiceConfiguration::DeviceSettings& settings);
 
