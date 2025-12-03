@@ -7,6 +7,8 @@
 #include "udpclient.h"
 #include "vbansendernode.h"
 
+#include <vban/dirtyflag.h>
+
 // Nap includes
 #include <nap/resourceptr.h>
 #include <audio/utility/safeptr.h>
@@ -27,7 +29,7 @@ namespace nap
 
 		/**
 		 * The VBANStreamSenderComponent takes the input of an audio component and translates that into a VBAN stream
-		 * that will be send via the UDP Client
+		 * that will be sent via the UDP Client
 		 */
 		class NAPAPI VBANStreamSenderComponent : public AudioComponentBase
 		{
@@ -39,6 +41,11 @@ namespace nap
 			std::string mStreamName			  = "localhost"; ///< property: 'StreamName' The streamname of the VBAN stream
 			nap::ComponentPtr<audio::AudioComponentBase> mInput; ///< property: 'Input' The component whose audio output will be send
 			std::vector<int> mChannelRouting; ///< property: 'ChannelRouting' The component whose audio output will be send
+
+			vban::SharedDirtyFlag& getSharedDirtyFlag() { return mSharedDirtyFlag; }
+
+		private:
+			vban::SharedDirtyFlag mSharedDirtyFlag;
 		};
 
 		/**
@@ -94,6 +101,7 @@ namespace nap
 		private:
 			ComponentInstancePtr<audio::AudioComponentBase> mInput	= {this, &VBANStreamSenderComponent::mInput};
 			audio::SafeOwner<audio::VBANSenderNode> mVBANSenderNode = nullptr;
+			audio::NodeManager* mNodeManager = nullptr;
 		};
 	}
 }

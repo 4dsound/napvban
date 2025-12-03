@@ -35,7 +35,7 @@ namespace nap
 			RTTI_ENABLE(Node)
 
 		public:
-			VBANSenderNode(NodeManager& nodeManager);
+			VBANSenderNode(NodeManager& nodeManager, vban::SharedDirtyFlag& sharedDirtyFlag);
 
 			virtual ~VBANSenderNode();
 
