@@ -58,6 +58,12 @@ namespace nap
 		const auto packetCounter = header.nuFrame;
 		const audio::DiscreteTimeValue time = packetCounter * frameCount;
 
+		if (packetCounter == 0)
+			streamBuffer->mPacketCounter.store(0);
+		if (packetCounter != streamBuffer->mPacketCounter.load())
+			nap::Logger::info("VBANCircularBuffer: Packet loss detected for stream %s", mStreamName.c_str());
+		streamBuffer->mPacketCounter.store(packetCounter + 1);
+
 		// Deinterleave and convert directly into circular buffer if channel count matches
 		if (streamBuffer->mData.getChannelCount() == channelCount)
 		{
@@ -200,17 +206,9 @@ namespace nap
 	}
 
 
-	void VBANCircularBuffer::setLatency(float latency)
+	void VBANCircularBuffer::setLatency(int latency)
 	{
-		mSetLatencyManually.store(true);
-		mManualLatency.store(latency * getNodeManager().getSamplesPerMillisecond());
-		mResetReadPosition.set();
-	}
-
-
-	void VBANCircularBuffer::calibrateLatency()
-	{
-		mSetLatencyManually.store(false);
+		mLatencyInBuffers.store(latency);
 		mResetReadPosition.set();
 	}
 
@@ -229,62 +227,45 @@ namespace nap
 	{
 		if (mResetReadPosition.check())
 		{
-			// The read position was requested to be reset.
-			Logger::debug("VBANCircularBuffer: reset read position.");
-			if (mSetLatencyManually.load())
-				mLatency.store(mManualLatency.load());
-			else
-				mLatency.store(getBufferSize() * 2.f);
-			mReadPosition = mWritePosition - mLatency.load();
+			resetReadPosition();
 		}
 		else
 		{
 			// Increase the read position of the circular buffer.
 			mReadPosition += getBufferSize();
+			mRealLatency = mWritePosition - mReadPosition;
 
-			mCounter += getBufferSize();
-			if (mCounter > getSampleRate())
-			{
-				mCounter = 0;
-				auto realLatency = mWritePosition - mReadPosition;
-				Logger::debug("VBANCircularBuffer: Actual Latency: %f ms", realLatency / getNodeManager().getSamplesPerMillisecond());
-			}
-
-			// If the read position overtakes the write position, increase the latency.
-			if (mReadPosition + getBufferSize() > mWritePosition)
+			// If the read position overtakes the write position, reset the latency.
+			if (mRealLatency < getBufferSize())
 			{
 				// This check is to avoid changing the read position when no audio is coming in.
 				if (mWritePosition == mLastWritePosition)
 				{
-					mReadPosition = mWritePosition - mLatency.load();
+					mReadPosition = mWritePosition - (mLatencyInBuffers.load() * getBufferSize());
 					mLastWritePosition = mWritePosition;
 					return;
 				}
-				Logger::debug("VBANCircularBuffer: Read position overtaking write position.");
-				auto latency = mManualLatency.load();
-				if (!mSetLatencyManually.load() && mLatency.load() < MaxLatency)
-				{
-					Logger::debug("Increasing latency");
-					latency = mLatency.load() + getBufferSize();
-				}
-				mLatency.store(latency);
-				mReadPosition = mWritePosition - latency;
+				Logger::info("VBANCircularBuffer: Read position overtaking write position.");
+				resetReadPosition();
 			}
-			// If the read position is too far behind, reset the latency.
-			else if (mWritePosition - mReadPosition > mLatency.load() * 2)
-			{
-				auto latency = mManualLatency.load();
-				if (!mSetLatencyManually.load() && mLatency.load() < MaxLatency)
-				{
-					Logger::debug("Increasing latency");
-					latency = mLatency.load() + getBufferSize();
-				}
-				mLatency.store(latency);
-				mReadPosition = mWritePosition - latency;
-				Logger::debug("VBANCircularBuffer: Read position too far behind.");
-			}
+
+			// // If the read position is too far behind, reset the latency.
+			// else if (mWritePosition - mReadPosition > (mLatencyInBuffers.load() * getBufferSize() * 3))
+			// {
+			// 	Logger::debug("VBANCircularBuffer: Read position too far behind.");
+			// 	resetReadPosition();
+			// }
+
 			mLastWritePosition = mWritePosition;
 		}
+	}
+
+
+	void VBANCircularBuffer::resetReadPosition()
+	{
+		double timeInMinutes = getNodeManager().getSampleTime() / (getNodeManager().getSamplesPerMillisecond() * 60000.f);
+		Logger::info("VBANCircularBuffer: resetting read position. Time: %f", timeInMinutes);
+		mReadPosition = mWritePosition - (mLatencyInBuffers.load() * getBufferSize());
 	}
 
 
