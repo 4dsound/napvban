@@ -264,7 +264,7 @@ namespace nap
 	void VBANCircularBuffer::resetReadPosition()
 	{
 		double timeInMinutes = getNodeManager().getSampleTime() / (getNodeManager().getSamplesPerMillisecond() * 60000.f);
-		Logger::info("VBANCircularBuffer: resetting read position. Time: %f", timeInMinutes);
+		Logger::info("VBANCircularBuffer: resetting read position. Time: %.2f", timeInMinutes);
 		mReadPosition = mWritePosition - (mLatencyInBuffers.load() * getBufferSize());
 	}
 

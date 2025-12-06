@@ -84,7 +84,7 @@ namespace nap
 		/**
 		 * Resets the actual latency to the latency as specified by setLatency().
 		 */
-		void recalibrate() { mResetReadPosition.set(); }
+		void reset() { mResetReadPosition.set(); }
 
 		/**
 		 * @return The number of streamd received in the circular buffer.

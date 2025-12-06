@@ -1,6 +1,7 @@
 #pragma once
 
 #include <vbanudpserver.h>
+#include <vbanreceiver.h>
 #include <audio/service/portaudioservice.h>
 
 #ifdef __APPLE__
@@ -45,6 +46,27 @@ namespace nap
 
         private:
             audio::PortAudioService& mAudioService;
+        };
+
+
+        /**
+         * Verison of the VBANReceiver that is tweaked for usage in combination with napportaudio.
+         * When an audio callback is late it resets the actual latency in order to stay in sync with the sender.
+         */
+        class NAPAPI PortAudioVBANReceiver : public VBANReceiver
+        {
+        public:
+            PortAudioVBANReceiver(Core& core);
+
+            bool init(utility::ErrorState& errorState) override;
+            void onDestroy() override;
+
+            Slot<double> mLateAudioCallbackSlot = { this, &PortAudioVBANReceiver::onLateAudioCallback };
+            void onLateAudioCallback(double time) { getCircularBuffer()->reset(); }
+
+        private:
+            audio::PortAudioService& mAudioService;
+
         };
 
     }
