@@ -1,10 +1,14 @@
-#include "portaudiovbanserver.h"
+#include "portaudiovban.h"
 
 #ifdef __APPLESILICON__
     #include "pa_mac_core.h"
 #endif
 
 RTTI_BEGIN_CLASS_NO_DEFAULT_CONSTRUCTOR(nap::audio::PortAudioVBANServer)
+    RTTI_CONSTRUCTOR(nap::Core&)
+RTTI_END_CLASS
+
+RTTI_BEGIN_CLASS_NO_DEFAULT_CONSTRUCTOR(nap::audio::PortAudioVBANReceiver)
     RTTI_CONSTRUCTOR(nap::Core&)
 RTTI_END_CLASS
 
@@ -73,6 +77,7 @@ namespace nap
             }
         }
 
+
 #else
         PortAudioVBANServer::PortAudioVBANServer(Core &core) : VBANUDPServer(), mAudioService(*core.getService<PortAudioService>())
         {
@@ -80,6 +85,28 @@ namespace nap
         }
 
 #endif
+
+
+        PortAudioVBANReceiver::PortAudioVBANReceiver(Core &core) : VBANReceiver(core), mAudioService(*core.getService<audio::PortAudioService>())
+        {
+        }
+
+
+        bool PortAudioVBANReceiver::init(utility::ErrorState &errorState)
+        {
+            if (!VBANReceiver::init(errorState))
+                return false;
+
+            mAudioService.lateAudioCallback.connect(mLateAudioCallbackSlot);
+            return true;
+        }
+
+
+        void PortAudioVBANReceiver::onDestroy()
+        {
+            mAudioService.lateAudioCallback.disconnect(mLateAudioCallbackSlot);
+            VBANReceiver::onDestroy();
+        }
 
     }
 
