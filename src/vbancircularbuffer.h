@@ -23,7 +23,7 @@ namespace nap
 		 * Constructor
 		 * @param nodeManager The NodeManager of the system
 		 */
-		VBANCircularBuffer(audio::NodeManager& nodeManager);
+		VBANCircularBuffer(audio::NodeManager& nodeManager, int size = 8192);
 
 		// Called from control thread
 
@@ -129,7 +129,6 @@ namespace nap
 		std::atomic<int> mRealLatency = 0;
 		audio::DirtyFlag mResetReadPosition;			// This flag is set when the read position has to be recalculated from the write position.
 		std::atomic<int> mStreamCount = { 0 };			// Number of streams in the circular buffer.
-		static constexpr int MaxLatency = 2048;
 
 		// For error reporting
 		std::string mErrorMessage;

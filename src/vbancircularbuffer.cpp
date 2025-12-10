@@ -7,7 +7,7 @@
 namespace nap
 {
 
-	VBANCircularBuffer::VBANCircularBuffer(audio::NodeManager &nodeManager) : audio::Process(nodeManager)
+	VBANCircularBuffer::VBANCircularBuffer(audio::NodeManager &nodeManager, int size) : audio::Process(nodeManager), mSize(size)
 	{
 		mStreamName.reserve(VBAN_STREAM_NAME_SIZE);
 	}
@@ -249,12 +249,12 @@ namespace nap
 				resetReadPosition();
 			}
 
-			// // If the read position is too far behind, reset the latency.
-			// else if (mWritePosition - mReadPosition > (mLatencyInBuffers.load() * getBufferSize() * 3))
-			// {
-			// 	Logger::debug("VBANCircularBuffer: Read position too far behind.");
-			// 	resetReadPosition();
-			// }
+			// If the read position is too far behind, reset the latency.
+			else if (mWritePosition - mReadPosition > mSize)
+			{
+				Logger::debug("VBANCircularBuffer: Read position too far behind.");
+				resetReadPosition();
+			}
 
 			mLastWritePosition = mWritePosition;
 		}

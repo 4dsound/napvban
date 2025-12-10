@@ -50,7 +50,7 @@ namespace nap
 
 
         /**
-         * Verison of the VBANReceiver that is tweaked for usage in combination with napportaudio.
+         * Version of the VBANReceiver that is tweaked for usage in combination with napportaudio.
          * When an audio callback is late it resets the actual latency in order to stay in sync with the sender.
          */
         class NAPAPI PortAudioVBANReceiver : public VBANReceiver

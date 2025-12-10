@@ -6,6 +6,7 @@
 RTTI_BEGIN_CLASS_NO_DEFAULT_CONSTRUCTOR(nap::VBANReceiver)
     RTTI_CONSTRUCTOR(nap::Core&)
 	RTTI_PROPERTY("Server", &nap::VBANReceiver::mServer, nap::rtti::EPropertyMetaData::Required)
+	RTTI_PROPERTY("CircularBufferSize", &nap::VBANReceiver::mCircularBufferSize, nap::rtti::EPropertyMetaData::Default)
 RTTI_END_CLASS
 
 namespace nap

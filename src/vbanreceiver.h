@@ -19,6 +19,7 @@ namespace nap
 
     public:
         ResourcePtr<VBANUDPServer> mServer = nullptr; ///< Property: 'Server' Pointer to the VBAN UDP server receiving the packets
+        int mCircularBufferSize = 8192; ///< Property: 'CircularBufferSize' Size of the circular buffer
 
         /**
          * Constructor
