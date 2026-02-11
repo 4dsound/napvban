@@ -55,6 +55,7 @@ namespace nap
          */
         class NAPAPI PortAudioVBANReceiver : public VBANReceiver
         {
+            RTTI_ENABLE(VBANReceiver)
         public:
             PortAudioVBANReceiver(Core& core);
 
