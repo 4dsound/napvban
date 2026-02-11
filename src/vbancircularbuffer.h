@@ -23,7 +23,7 @@ namespace nap
 		 * Constructor
 		 * @param nodeManager The NodeManager of the system
 		 */
-		VBANCircularBuffer(audio::NodeManager& nodeManager, int size = 8192);
+		VBANCircularBuffer(audio::NodeManager& nodeManager, int size);
 
 		// Called from control thread
 

@@ -21,7 +21,7 @@ namespace nap
     bool VBANReceiver::init(utility::ErrorState &errorState)
     {
     	auto& nodeManager = mAudioService->getNodeManager();
-    	mCircularBuffer = nodeManager.makeSafe<VBANCircularBuffer>(nodeManager);
+    	mCircularBuffer = nodeManager.makeSafe<VBANCircularBuffer>(nodeManager, mCircularBufferSize);
 
     	// Register as root process
     	registerBufferProcess(mCircularBuffer.get());
