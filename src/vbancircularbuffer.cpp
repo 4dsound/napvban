@@ -271,7 +271,7 @@ namespace nap
 
 	bool VBANCircularBuffer::checkPacket(const VBanHeader& header, size_t size)
 	{
-		if (size > VBAN_DATA_MAX_SIZE)
+		if (size > VBAN_PROTOCOL_MAX_SIZE)
 		{
 			setError("Packet exceeds maximum size.");
 			return false;
